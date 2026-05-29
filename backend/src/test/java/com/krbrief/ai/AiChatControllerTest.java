@@ -7,7 +7,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.krbrief.summaries.DailySummaryService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -25,7 +24,7 @@ class AiChatControllerTest {
   @MockBean AiChatClient client;
   @MockBean AiChatContextEnricher enricher;
   @MockBean AiChatLogService logService;
-  @MockBean DailySummaryService summaryService;
+  @MockBean AiAfterMarketReportService afterMarketReportService;
 
   @Test
   void chat_proxiesAiServiceResponse() throws Exception {

@@ -1,5 +1,6 @@
 package com.krbrief.summaries;
 
+import com.krbrief.ai.AiAfterMarketReportService;
 import java.time.LocalDate;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -16,12 +17,15 @@ public class SummaryScheduler {
   private static final Logger log = LoggerFactory.getLogger(SummaryScheduler.class);
 
   private final DailySummaryService service;
+  private final AiAfterMarketReportService afterMarketReportService;
   private final RestClient marketDataHttp;
 
   public SummaryScheduler(
       DailySummaryService service,
+      AiAfterMarketReportService afterMarketReportService,
       @Value("${marketdata.baseUrl:http://marketdata:8000}") String marketDataBaseUrl) {
     this.service = service;
+    this.afterMarketReportService = afterMarketReportService;
     this.marketDataHttp = RestClient.builder().baseUrl(marketDataBaseUrl).build();
   }
 
@@ -34,7 +38,13 @@ public class SummaryScheduler {
       return;
     }
     log.info("Scheduled summary triggered for business day {}", today);
-    service.generate(today);
+    DailySummary saved = service.generate(today);
+    try {
+      afterMarketReportService.savedOrGenerate(SummaryDto.from(saved), "scheduled_after_close");
+      log.info("Scheduled Ollama after-market report prepared for {}", today);
+    } catch (Exception e) {
+      log.warn("Scheduled Ollama after-market report failed for {}: {}", today, e.getMessage());
+    }
   }
 
   private boolean isBusinessDay(LocalDate date) {
