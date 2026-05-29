@@ -9,14 +9,27 @@ export default function FloatingAiCard({ ai, events, asOf }) {
   if (!ai) return null;
 
   return (
-    <div className={clsx(styles.container, expanded && styles.expanded)}>
+    <details
+      className={clsx(styles.container, expanded && styles.expanded)}
+      open={expanded}
+      onToggle={(event) => setExpanded(event.currentTarget.open)}
+    >
       {/* Minimized View (1-line summary) */}
-      <button
-        type="button"
+      <summary
         className={styles.header}
-        onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
         aria-label={expanded ? 'AI 요약 접기' : 'AI 요약 펼치기'}
+        role="button"
+        tabIndex={0}
+        onClick={(event) => {
+          event.preventDefault();
+          setExpanded((current) => !current);
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          setExpanded((current) => !current);
+        }}
       >
         <div className={styles.iconWrapper}>
           <Bot size={24} className={styles.icon} />
@@ -35,11 +48,10 @@ export default function FloatingAiCard({ ai, events, asOf }) {
         <span className={styles.toggleBtn} aria-hidden="true">
           {expanded ? <ChevronDown /> : <ChevronUp />}
         </span>
-      </button>
+      </summary>
 
       {/* Expanded View (Conditions & News) */}
-      {expanded && (
-        <div className={styles.details}>
+      <div className={styles.details}>
           <div className={styles.runtimeNotice}>
             <Info size={15} />
             <span>
@@ -211,7 +223,6 @@ export default function FloatingAiCard({ ai, events, asOf }) {
             <span>신뢰도: {ai.confidence}</span>
           </div>
         </div>
-      )}
-    </div>
+    </details>
   );
 }

@@ -114,19 +114,7 @@ function App() {
             onChangeStock={changeStock}
             learningMode={learningMode}
             onTermClick={handleSelectTerm}
-          >
-            <FloatingLearningMode 
-              isActive={learningMode} 
-              onToggle={handleToggleLearningMode} 
-            />
-            <button 
-              className={styles.floatingIconBtn}
-              onClick={() => setPortfolioOpen(true)}
-              aria-label="Open Portfolio"
-            >
-              <Briefcase size={20} />
-            </button>
-          </ImmersiveChart>
+          />
         )}
       </div>
 
@@ -146,6 +134,22 @@ function App() {
 
       {/* Floating UI Layer */}
       <div className={styles.uiLayer}>
+        {data && (
+          <div className={styles.rightActionGroup}>
+            <FloatingLearningMode
+              isActive={learningMode}
+              onToggle={handleToggleLearningMode}
+            />
+            <button
+              className={styles.floatingIconBtn}
+              onClick={() => setPortfolioOpen(true)}
+              aria-label="Open Portfolio"
+              title="포트폴리오 샌드박스"
+            >
+              <Briefcase size={20} />
+            </button>
+          </div>
+        )}
         {data && !loading && (
           <FloatingAiCard ai={data.ai} events={data.events} asOf={data.asOf} />
         )}

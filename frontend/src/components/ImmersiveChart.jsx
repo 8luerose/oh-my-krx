@@ -15,7 +15,7 @@ function getEventLabel(type) {
   return '확인 필요';
 }
 
-export default function ImmersiveChart({ stock, chart, zones, events, ai, indicatorSnapshot, decisionSummary, interval, onChangeInterval, stockOptions = [], onChangeStock, learningMode, onTermClick, children }) {
+export default function ImmersiveChart({ stock, chart, zones, events, ai, indicatorSnapshot, decisionSummary, interval, onChangeInterval, stockOptions = [], onChangeStock, learningMode, onTermClick }) {
   const toolbarRef = useRef(null);
   const [activePanel, setActivePanel] = useState('none'); // 'none', 'stocks', 'guide', 'ai'
   const [guideTab, setGuideTab] = useState('ma'); // 'ma', 'beginner', 'event'
@@ -317,9 +317,6 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
               </div>
             )}
           </div>
-          
-          {/* External unified controls (Learning Mode, Portfolio, etc.) */}
-          {children}
         </div>
       </div>
 

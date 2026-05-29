@@ -28,6 +28,12 @@
   flex-shrink: 0;
   cursor: pointer;
   text-align: left;
+  list-style: none;
+  user-select: none;
+}
+
+.header::-webkit-details-marker {
+  display: none;
 }
 
 .iconWrapper {
