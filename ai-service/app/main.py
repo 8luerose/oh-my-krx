@@ -1049,10 +1049,75 @@ def _headline_sentiment_score(headlines: list[dict[str, Any]]) -> int:
     return round(_clamp(score, -60, 60))
 
 
+def _news_evidence_profile(headlines: list[dict[str, Any]]) -> dict[str, Any]:
+    positive = 0
+    negative = 0
+    mixed = 0
+    factor_count = 0
+    title_count = 0
+    for headline in headlines[:8]:
+        if not isinstance(headline, dict):
+            continue
+        if _clean(headline.get("title") or headline.get("summary"), ""):
+            title_count += 1
+        sentiment = _clean(headline.get("sentiment"), "").lower()
+        if sentiment == "positive":
+            positive += 1
+        elif sentiment == "negative":
+            negative += 1
+        elif sentiment == "mixed":
+            mixed += 1
+        factors = headline.get("causalFactors") or headline.get("matchedKeywords") or []
+        if isinstance(factors, str):
+            factors = [factors]
+        factor_count += len([item for item in factors if _clean(item, "")])
+
+    if title_count >= 5 and factor_count >= 4:
+        quality = "보통"
+    elif title_count >= 3:
+        quality = "제한적"
+    else:
+        quality = "낮음"
+
+    cautions: list[str] = []
+    if title_count < 3:
+        cautions.append("뉴스 후보가 적어 가격·거래량 확인 비중을 높였습니다.")
+    if mixed >= max(2, positive + negative):
+        cautions.append("복합 해석 뉴스가 많아 상승·하락 확률을 보수적으로 계산했습니다.")
+    if factor_count < 3:
+        cautions.append("뉴스 제목의 원인 키워드가 부족해 원문 확인이 필요합니다.")
+
+    return {
+        "headlineCount": title_count,
+        "positiveCount": positive,
+        "negativeCount": negative,
+        "mixedCount": mixed,
+        "factorCount": factor_count,
+        "quality": quality,
+        "cautions": cautions or ["뉴스 제목만으로 확정하지 말고 다음 거래일 거래량 반응을 확인해야 합니다."],
+    }
+
+
+def _calibrated_sentiment_score(events: list[dict[str, Any]], headlines: list[dict[str, Any]], profile: dict[str, Any]) -> int:
+    event_score = _event_sentiment_score(events)
+    headline_score = _headline_sentiment_score(headlines)
+    score = event_score * 0.55 + headline_score * 0.75
+    if profile.get("headlineCount", 0) < 3:
+        score *= 0.72
+    if profile.get("mixedCount", 0) >= max(2, profile.get("positiveCount", 0) + profile.get("negativeCount", 0)):
+        score *= 0.78
+    if profile.get("factorCount", 0) < 3:
+        score *= 0.82
+    return round(_clamp(score, -70, 70))
+
+
 def _probabilities_from_score(score: int) -> dict[str, int]:
-    up = _clamp(45 + score * 0.32, 15, 75)
-    down = _clamp(45 - score * 0.32, 15, 75)
-    total = up + down + 10
+    direction = _clamp(score, -70, 70)
+    flat = round(_clamp(18 - abs(direction) * 0.1, 10, 22))
+    directional_pool = 100 - flat
+    up = _clamp(directional_pool * (0.5 + direction / 320), 18, 65)
+    down = _clamp(directional_pool - up, 18, 65)
+    total = up + down + flat
     up_value = round(up / total * 100)
     down_value = round(down / total * 100)
     return {
@@ -1176,6 +1241,38 @@ def _headlines_from_context(events: list[dict[str, Any]], news_headlines: list[d
     return headlines[:6]
 
 
+def _headline_factor_text(headline: dict[str, Any]) -> str:
+    factors = headline.get("causalFactors") or headline.get("matchedKeywords") or []
+    if isinstance(factors, str):
+        factors = [factors]
+    cleaned = [_clean(item, "") for item in factors if _clean(item, "")]
+    return ", ".join(cleaned[:3]) if cleaned else "근거 키워드 확인 필요"
+
+
+def _headline_reason_lists(headlines: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
+    up_reasons: list[str] = []
+    down_risks: list[str] = []
+    for headline in headlines[:8]:
+        if not isinstance(headline, dict):
+            continue
+        title = _clean(headline.get("title") or headline.get("summary"), "")
+        if not title:
+            continue
+        factor_text = _headline_factor_text(headline)
+        sentiment = _clean(headline.get("sentiment"), "").lower()
+        line = f"{title} · 근거: {factor_text}"
+        if sentiment == "positive" and len(up_reasons) < 3:
+            up_reasons.append(line)
+        elif sentiment == "negative" and len(down_risks) < 3:
+            down_risks.append(line)
+        elif sentiment == "mixed":
+            if len(up_reasons) < 3:
+                up_reasons.append(f"{title} · 좋게 볼 부분과 확인할 부분이 함께 있음")
+            if len(down_risks) < 3:
+                down_risks.append(f"{title} · 단정 금지: {factor_text}")
+    return up_reasons[:3], down_risks[:3]
+
+
 def _summary_points(summary: dict[str, Any] | None) -> list[str]:
     if not isinstance(summary, dict):
         return ["저장된 장후 브리프가 부족해 종목 차트와 이벤트 중심으로 요약합니다."]
@@ -1205,13 +1302,15 @@ def _fallback_ollama_insights(
 ) -> dict[str, Any]:
     events = req.events or []
     news_headlines = req.newsHeadlines or []
-    score = round(_clamp(_event_sentiment_score(events) + _headline_sentiment_score(news_headlines), -100, 100))
+    news_profile = _news_evidence_profile(news_headlines)
+    score = _calibrated_sentiment_score(events, news_headlines, news_profile)
     probabilities = _probabilities_from_score(score)
     ma20 = _ma20_context(req)
     position = ma20["position"]
     decision = _decision_from_inputs(score, position)
     decision_summary = req.currentDecisionSummary if isinstance(req.currentDecisionSummary, dict) else {}
     headlines = _headlines_from_context(events, news_headlines)
+    up_reasons, down_risks = _headline_reason_lists(news_headlines)
     portfolio = _portfolio_guidance(req.portfolioContext if isinstance(req.portfolioContext, dict) else None)
     summary_points = _summary_points(req.summary)
     missing_reason = _clean(llm_meta.get("fallbackReason"), "Ollama 모델 설정 또는 호출 확인 필요")
@@ -1258,13 +1357,21 @@ def _fallback_ollama_insights(
             "title": "뉴스 감성 기반 단기 방향 예측",
             "score": score,
             "label": "긍정 우위" if score > 20 else "부정 우위" if score < -20 else "중립",
+            "confidence": news_profile["quality"],
+            "evidenceQuality": (
+                f"뉴스 {news_profile['headlineCount']}건, 긍정 {news_profile['positiveCount']}건, "
+                f"부정 {news_profile['negativeCount']}건, 복합 {news_profile['mixedCount']}건 기준"
+            ),
             "nextTradingDay": probabilities,
             "summary": (
-                f"최근 이벤트와 뉴스 후보를 점수화하면 {score}점입니다. "
+                f"최근 이벤트와 뉴스 후보를 보수적으로 보정하면 {score}점입니다. "
                 f"상승 {probabilities['up']}%, 하락 {probabilities['down']}%, 횡보 {probabilities['flat']}%로 보고, "
-                "뉴스 원문과 장중 거래량으로 다시 검증해야 합니다."
+                f"근거 품질은 {news_profile['quality']}입니다. 뉴스 원문과 장중 거래량으로 다시 검증해야 합니다."
             ),
             "headlineSignals": headlines or ["뉴스/공시 원문 후보가 부족합니다."],
+            "upReasons": up_reasons or ["상승 쪽 근거는 차트와 거래량 반응으로 추가 확인이 필요합니다."],
+            "downRisks": down_risks or ["하락 쪽 반대 근거가 부족해도 지지선 이탈 여부는 확인해야 합니다."],
+            "caution": news_profile["cautions"][0],
         },
         "afterMarketReport": {
             "title": "매일 장후 시장 요약 리포트",
@@ -1477,7 +1584,10 @@ def _build_ollama_insights_prompt(
     "score": 0,
     "label": "긍정 우위|중립|부정 우위",
     "summary": "",
-    "headlineSignals": []
+    "headlineSignals": [],
+    "upReasons": [],
+    "downRisks": [],
+    "caution": ""
   }},
   "afterMarketReport": {{
     "mood": "",

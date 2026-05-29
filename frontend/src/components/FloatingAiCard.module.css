@@ -247,6 +247,57 @@
   overflow-wrap: anywhere;
 }
 
+.sentimentMeta {
+  display: block;
+  color: #bfdbfe;
+  font-size: 0.74rem;
+  font-weight: 850;
+  line-height: 1.3;
+  margin: 0 0 5px;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.sentimentReasonGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.sentimentReasonGrid div {
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 7px;
+}
+
+.sentimentReasonGrid b,
+.sentimentReasonGrid span {
+  display: block;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.sentimentReasonGrid b {
+  color: var(--color-text-primary);
+  font-size: 0.72rem;
+  line-height: 1.3;
+  margin-bottom: 3px;
+}
+
+.sentimentReasonGrid span,
+.sentimentCaution {
+  color: var(--color-text-tertiary);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.sentimentCaution {
+  margin-top: 7px !important;
+}
+
 .marketReportBox {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
@@ -530,6 +581,7 @@
   }
 
   .conditionGrid { grid-template-columns: 1fr; }
+  .sentimentReasonGrid { grid-template-columns: 1fr; }
   .newsGrid { grid-template-columns: 1fr; }
   .checklist { grid-template-columns: 1fr; }
 

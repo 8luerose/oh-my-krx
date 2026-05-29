@@ -92,6 +92,9 @@ export default function FloatingAiCard({ ai, events, asOf }) {
                     <strong>
                       상승 {ai.ollamaInsights.newsSentiment.nextTradingDay.up}% · 하락 {ai.ollamaInsights.newsSentiment.nextTradingDay.down}%
                     </strong>
+                    <span className={styles.sentimentMeta}>
+                      {ai.ollamaInsights.newsSentiment.label} · 근거 {ai.ollamaInsights.newsSentiment.confidence}
+                    </span>
                     <p>{ai.ollamaInsights.newsSentiment.summary}</p>
                     {ai.ollamaInsights.newsSentiment.headlineSignals?.length > 0 && (
                       <ul className={styles.compactList}>
@@ -99,6 +102,21 @@ export default function FloatingAiCard({ ai, events, asOf }) {
                           <li key={`${item}-${index}`}>{item}</li>
                         ))}
                       </ul>
+                    )}
+                    {(ai.ollamaInsights.newsSentiment.upReasons?.length > 0 || ai.ollamaInsights.newsSentiment.downRisks?.length > 0) && (
+                      <div className={styles.sentimentReasonGrid}>
+                        <div>
+                          <b>상승 쪽 근거</b>
+                          <span>{ai.ollamaInsights.newsSentiment.upReasons?.[0] || '가격과 거래량 확인 필요'}</span>
+                        </div>
+                        <div>
+                          <b>주의할 근거</b>
+                          <span>{ai.ollamaInsights.newsSentiment.downRisks?.[0] || ai.ollamaInsights.newsSentiment.caution}</span>
+                        </div>
+                      </div>
+                    )}
+                    {ai.ollamaInsights.newsSentiment.caution && (
+                      <p className={styles.sentimentCaution}>{ai.ollamaInsights.newsSentiment.caution}</p>
                     )}
                   </div>
                 </article>

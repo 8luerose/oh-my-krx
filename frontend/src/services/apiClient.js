@@ -395,13 +395,18 @@ function normalizeOllamaInsights(remote = {}) {
       title: sentiment.title || "뉴스 감성 기반 단기 방향 예측",
       score: Number.isFinite(Number(sentiment.score)) ? Math.round(Number(sentiment.score)) : 0,
       label: humanizeText(sentiment.label || "중립"),
+      confidence: humanizeText(sentiment.confidence || "확인 필요"),
+      evidenceQuality: humanizeText(sentiment.evidenceQuality || "뉴스 근거 품질 확인 필요"),
       nextTradingDay: {
         up: normalizeProbability(nextTradingDay.up),
         down: normalizeProbability(nextTradingDay.down),
         flat: normalizeProbability(nextTradingDay.flat)
       },
       summary: humanizeText(sentiment.summary || "뉴스/이벤트 후보가 부족합니다."),
-      headlineSignals: normalizeTextList(sentiment.headlineSignals)
+      headlineSignals: normalizeTextList(sentiment.headlineSignals),
+      upReasons: normalizeTextList(sentiment.upReasons),
+      downRisks: normalizeTextList(sentiment.downRisks),
+      caution: humanizeText(sentiment.caution || "뉴스 제목만으로 확정하지 말고 가격과 거래량 반응을 함께 확인합니다.")
     },
     afterMarketReport: {
       title: report.title || "매일 장후 시장 요약 리포트",
