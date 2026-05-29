@@ -225,6 +225,32 @@ function normalizeEvent(remoteEvent = {}) {
   };
 }
 
+function normalizeNewsHeadline(item = {}) {
+  return {
+    title: humanizeText(item.title || item.summary || "뉴스 제목 확인 필요"),
+    url: item.url || "",
+    sourceType: item.sourceType || "news",
+    sentiment: item.sentiment || "neutral",
+    matchedKeywords: Array.isArray(item.matchedKeywords) ? item.matchedKeywords : [],
+    causalFactors: Array.isArray(item.causalFactors) ? item.causalFactors : [],
+    evidenceLevel: item.evidenceLevel || "search_result",
+    summary: humanizeText(item.summary || item.title || "")
+  };
+}
+
+function normalizeNews(remoteNews = {}) {
+  const headlines = Array.isArray(remoteNews?.headlines) ? remoteNews.headlines.map(normalizeNewsHeadline) : [];
+  return {
+    code: remoteNews?.code || "",
+    name: remoteNews?.name || "",
+    asOf: remoteNews?.asOf || "",
+    source: remoteNews?.source || "news_unavailable",
+    queryUrl: remoteNews?.queryUrl || "",
+    headlines,
+    limitations: normalizeTextList(remoteNews?.limitations, ["뉴스 검색 결과가 부족하면 가격/거래량 이벤트 중심으로 판단합니다."])
+  };
+}
+
 function normalizeConfidence(value) {
   const normalized = String(value || "").trim().toLowerCase();
   const compact = normalized.replace(/[^a-z]/g, "");
@@ -431,10 +457,11 @@ async function loadStockCoreWorkspaceRemote(code, interval) {
   };
 
   const params = buildStockRequestParams(interval);
-  const [chart, zones, events] = await Promise.all([
+  const [chart, zones, events, news] = await Promise.all([
     requestJson(`/api/stocks/${code}/chart?${params.chart}`),
     requestJson(`/api/stocks/${code}/trade-zones?${params.zones}`),
-    requestJson(`/api/stocks/${code}/events?${params.events}`)
+    requestJson(`/api/stocks/${code}/events?${params.events}`),
+    requestJson(`/api/stocks/${code}/news?limit=8`).catch(() => null)
   ]);
 
   const normalizedChart = normalizeChart(chart);
@@ -450,6 +477,7 @@ async function loadStockCoreWorkspaceRemote(code, interval) {
     chart: normalizedChart,
     zones: normalizeTradeZones(zones, next.zones),
     events: Array.isArray(events?.events) ? events.events.map(normalizeEvent) : [],
+    news: normalizeNews(news),
     indicatorSnapshot: zones?.indicatorSnapshot || null,
     currentDecisionSummary: zones?.currentDecisionSummary || null,
     ai: normalizeAi(null)
@@ -503,6 +531,19 @@ function compactEventsForAi(events = []) {
   }));
 }
 
+function compactNewsForAi(news) {
+  return (news?.headlines || []).slice(0, 8).map((headline) => ({
+    title: headline.title,
+    url: headline.url,
+    sourceType: headline.sourceType,
+    sentiment: headline.sentiment,
+    matchedKeywords: headline.matchedKeywords,
+    causalFactors: headline.causalFactors,
+    evidenceLevel: headline.evidenceLevel,
+    summary: headline.summary
+  }));
+}
+
 function buildAiContext(workspace, interval) {
   return {
     code: workspace.stock.code,
@@ -517,6 +558,7 @@ function buildAiContext(workspace, interval) {
       zones: compactZonesForAi(workspace.zones)
     },
     events: compactEventsForAi(workspace.events),
+    newsHeadlines: compactNewsForAi(workspace.news),
     indicatorSnapshot: workspace.indicatorSnapshot,
     currentDecisionSummary: workspace.currentDecisionSummary
   };

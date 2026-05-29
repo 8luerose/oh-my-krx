@@ -5,7 +5,7 @@
 - 데이터 계산: `marketdata` 서비스(`/leaders`)가 “상승/하락/언급 TOP”을 산출
 - 저장/제공: `backend`가 요약을 생성/저장하고 REST API로 제공
 - 표시/학습: `frontend`에서 오늘의 시장 브리프, TOP3 종목 리서치 패널, 캔들차트, 월 달력, 초보자 용어 사전, 학습 도우미를 제공
-- AI 확장점: `/api/learning/assistant`는 내부 용어 사전 기반 응답을 제공하고, `/api/ai/chat`은 검색/브리프/차트/이벤트/용어 근거를 묶은 RAG 응답을 제공한다.
+- AI 확장점: `/api/learning/assistant`는 내부 용어 사전 기반 응답을 제공하고, `/api/ai/chat`은 검색/브리프/차트/이벤트/뉴스/용어 근거를 묶은 RAG 응답을 제공한다.
 - AI 서비스: `ai-service`가 `/chat`, `/ollama/insights`를 제공하고 backend가 `/api/ai/chat`, `/api/ai/ollama/insights`로 프록시한다. OpenAI-compatible, Anthropic-compatible, Ollama 설정이 있으면 live LLM으로 응답하고, 설정이 없거나 실패하면 규칙형 근거 기반 fallback으로 응답한다.
 
 > 추가 목표: Discord **웹훅(Webhook)**으로 지정 **스레드**에 자동 포스팅
@@ -88,6 +88,7 @@ curl -X POST "http://localhost:8080/api/summaries/2026-02-26/generate"
 - 상승/하락/언급 TOP3 항목을 선택하면 종목 상세 리서치 패널로 연결
 - 종목 상세에서 일봉/주봉/월봉 캔들차트, 20일 이동평균선, 거래량, 급등/급락/거래량 이벤트 마커를 확인
 - 차트 옆에서 공격형/중립형/보수형 시나리오별 매수 검토, 매도 검토, 리스크 관리 조건을 교육용으로 확인
+- 종목 선택 시 국내 뉴스 헤드라인 후보를 함께 불러와 Ollama 단기 감성 판단의 근거로 사용
 - 포트폴리오 샌드박스에서 관심 종목과 가상 비중을 저장하고 집중도/변동성 리스크를 확인
 - 브리프 옆에서 `등락률`, `거래량`, `PER`, `공시`, `종목토론방 언급량` 같은 핵심 용어를 바로 확인
 - 학습 도우미에서 선택 날짜와 용어를 묶어 초보자용 설명/주의점/출처/한계를 확인
@@ -127,6 +128,7 @@ curl -X POST "http://localhost:8080/api/summaries/2026-02-26/generate"
 종목 리서치:
 - `GET /api/stocks/{code}/chart?range=1M|3M|6M|1Y|3Y&interval=daily|weekly|monthly`
 - `GET /api/stocks/{code}/events?from=YYYY-MM-DD&to=YYYY-MM-DD`
+- `GET /api/stocks/{code}/news?limit=8`
 
 정책:
 - 날짜 포맷은 ISO `YYYY-MM-DD`
@@ -254,7 +256,7 @@ docker compose up -d --build ai-service backend frontend
 curl http://localhost:8080/api/ai/status
 curl -X POST http://localhost:8080/api/ai/ollama/insights \
   -H 'Content-Type: application/json' \
-  -d '{"question":"삼성전자 지금 사도 되나요?","context":{"stockCode":"005930","stockName":"삼성전자"}}'
+  -d '{"question":"삼성전자 지금 사도 되나요?","context":{"stockCode":"005930","stockName":"삼성전자","newsHeadlines":[{"title":"삼성전자 반도체 실적 개선 기대","sentiment":"positive","matchedKeywords":["실적","반도체"]}]}}'
 ```
 
 Docker 내부 Ollama를 쓰려면 `docker compose --profile ollama up -d ollama`로 Ollama 컨테이너를 띄우고, `OLLAMA_BASE_URL=http://ollama:11434`와 `OLLAMA_MODEL`을 지정한다. 모델이 없거나 호출이 실패하면 화면은 규칙형 미리보기로 계속 동작한다.

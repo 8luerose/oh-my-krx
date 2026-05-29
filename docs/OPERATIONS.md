@@ -105,13 +105,13 @@ docker compose up -d --build ai-service backend frontend
 curl http://localhost:8080/api/ai/status
 curl -X POST http://localhost:8080/api/ai/ollama/insights \
   -H 'Content-Type: application/json' \
-  -d '{"question":"삼성전자 지금 사도 되나요?","context":{"stockCode":"005930","stockName":"삼성전자"}}'
+  -d '{"question":"삼성전자 지금 사도 되나요?","context":{"stockCode":"005930","stockName":"삼성전자","newsHeadlines":[{"title":"삼성전자 반도체 실적 개선 기대","sentiment":"positive","matchedKeywords":["실적","반도체"]}]}}'
 ```
 
 `/api/ai/ollama/insights`는 한 번에 세 가지를 반환한다.
 
 - "이 종목 지금 사도 되나요?" 조건형 매수/관망/매도 상담
-- 뉴스/이벤트 감성 점수와 다음 거래일 상승/하락/횡보 확률
+- 국내 뉴스 헤드라인과 이벤트 감성 점수, 다음 거래일 상승/하락/횡보 확률
 - 장후 시장 요약 리포트용 로컬 LLM 코멘트
 
 Ollama 모델명이 없거나 로컬 서버가 꺼져 있으면 `mode=ollama_fallback_rule_based`로 즉시 규칙형 미리보기를 반환한다.

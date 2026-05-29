@@ -77,6 +77,13 @@ export default function FloatingAiCard({ ai, events, asOf }) {
                       상승 {ai.ollamaInsights.newsSentiment.nextTradingDay.up}% · 하락 {ai.ollamaInsights.newsSentiment.nextTradingDay.down}%
                     </strong>
                     <p>{ai.ollamaInsights.newsSentiment.summary}</p>
+                    {ai.ollamaInsights.newsSentiment.headlineSignals?.length > 0 && (
+                      <ul className={styles.compactList}>
+                        {ai.ollamaInsights.newsSentiment.headlineSignals.slice(0, 3).map((item, index) => (
+                          <li key={`${item}-${index}`}>{item}</li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 </article>
                 <article className={styles.ollamaCard}>

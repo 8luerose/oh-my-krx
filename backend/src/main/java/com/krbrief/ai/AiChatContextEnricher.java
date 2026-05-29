@@ -7,6 +7,7 @@ import com.krbrief.search.SearchResultDto;
 import com.krbrief.search.SearchService;
 import com.krbrief.stocks.StockChartDto;
 import com.krbrief.stocks.StockEventsDto;
+import com.krbrief.stocks.StockNewsDto;
 import com.krbrief.stocks.StockResearchClient;
 import com.krbrief.stocks.StockTradeZoneService;
 import com.krbrief.stocks.StockTradeZonesDto;
@@ -118,6 +119,7 @@ public class AiChatContextEnricher {
     exposeTopLevel(enriched, context, "stockName");
     exposeTopLevel(enriched, context, "chart");
     exposeTopLevel(enriched, context, "events");
+    exposeTopLevel(enriched, context, "newsHeadlines");
     exposeTopLevel(enriched, context, "tradeZones");
     exposeTopLevel(enriched, context, "indicatorSnapshot");
     exposeTopLevel(enriched, context, "currentDecisionSummary");
@@ -199,6 +201,30 @@ public class AiChatContextEnricher {
               return out;
             })
             .toList());
+      }
+
+      if (!context.containsKey("newsHeadlines")) {
+        StockNewsDto news = stockResearchClient.news(stockCode, 8);
+        List<StockNewsDto.NewsHeadlineDto> headlines =
+            news.headlines() == null ? List.of() : news.headlines();
+        context.putIfAbsent(
+            "newsHeadlines",
+            headlines.stream()
+                .limit(8)
+                .map(
+                    headline -> {
+                      LinkedHashMap<String, Object> out = new LinkedHashMap<>();
+                      out.put("title", headline.title());
+                      out.put("url", headline.url());
+                      out.put("sourceType", headline.sourceType());
+                      out.put("sentiment", headline.sentiment());
+                      out.put("matchedKeywords", headline.matchedKeywords());
+                      out.put("causalFactors", headline.causalFactors());
+                      out.put("evidenceLevel", headline.evidenceLevel());
+                      out.put("summary", headline.summary());
+                      return out;
+                    })
+                .toList());
       }
     } catch (RuntimeException e) {
       context.putIfAbsent("stockContextWarning", "stock_context_unavailable");

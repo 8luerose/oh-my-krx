@@ -966,6 +966,55 @@ def _event_text_signals(code: str, name: str, from_ymd: str, to_ymd: str) -> lis
     return signals
 
 
+def _clean_news_headline_title(text: str) -> str:
+    cleaned = " ".join(str(text or "").split())
+    for marker in ("주요서비스 바로가기", "본문 바로가기", "매체정보 바로가기", "잠깐! 현재 Internet Explorer"):
+        if marker in cleaned:
+            cleaned = cleaned.split(marker, 1)[0].strip()
+    for match in re.finditer(r"(다\.|밝혔다\.|전했다\.|나왔다\.)", cleaned):
+        if match.end() >= 28:
+            cleaned = cleaned[: match.end()].strip()
+            break
+    if len(cleaned) > 84:
+        cleaned = cleaned[:82].rstrip() + "..."
+    return cleaned if cleaned else "뉴스 제목 확인 필요"
+
+
+def _news_headline_items(code: str, name: str, limit: int = 8) -> list[dict]:
+    items: list[dict] = []
+    raw_signals = list(_naver_news_text_signals(code, name))
+    search_signals = [signal for signal in raw_signals if signal.get("signalOrigin") == "search_result"]
+    fallback_signals = [signal for signal in raw_signals if signal.get("signalOrigin") != "search_result"]
+    seen_titles: set[str] = set()
+    for signal in [*search_signals, *fallback_signals]:
+        text = str(signal.get("text") or "").strip()
+        if not text:
+            continue
+        title = _clean_news_headline_title(text)
+        dedupe_key = re.sub(r"\W+", "", title)[:80]
+        if not dedupe_key or dedupe_key in seen_titles:
+            continue
+        seen_titles.add(dedupe_key)
+        direction = str(signal.get("causalDirection") or "neutral")
+        if direction not in {"positive", "negative", "mixed", "neutral"}:
+            direction = "neutral"
+        items.append(
+            {
+                "title": title,
+                "url": signal.get("url", ""),
+                "sourceType": signal.get("sourceType", "news"),
+                "sentiment": direction,
+                "matchedKeywords": signal.get("matchedKeywords", [])[:8],
+                "causalFactors": signal.get("causalFactors", [])[:6],
+                "evidenceLevel": signal.get("signalOrigin", "search_result"),
+                "summary": signal.get("signalSummary") or text[:220],
+            }
+        )
+        if len(items) >= limit:
+            break
+    return items
+
+
 def _event_severity(abs_price_rate: float, volume_rate: float) -> str:
     if abs_price_rate >= 12 or volume_rate >= 450:
         return "high"
@@ -1585,6 +1634,26 @@ def stock_events(code: str, from_date: str | None = Query(default=None, alias="f
         "from": f"{from_ymd[0:4]}-{from_ymd[4:6]}-{from_ymd[6:8]}",
         "to": f"{to_ymd[0:4]}-{to_ymd[4:6]}-{to_ymd[6:8]}",
         "events": _detect_chart_events(ticker, name, raw, from_ymd, to_ymd),
+    }
+
+
+@app.get("/stocks/{code}/news")
+def stock_news(code: str, limit: int = 8):
+    ticker = _normalize_stock_code(code)
+    safe_limit = max(1, min(int(limit or 8), 12))
+    name = _name(ticker)
+    query = quote(f"{name} {ticker} 주가 거래량 공시")
+    return {
+        "code": ticker,
+        "name": name,
+        "asOf": datetime.now().strftime("%Y-%m-%d"),
+        "source": "naver_news_search_text",
+        "queryUrl": f"https://search.naver.com/search.naver?where=news&query={query}",
+        "headlines": _news_headline_items(ticker, name, safe_limit),
+        "limitations": [
+            "네이버 뉴스 검색 결과의 제목/요약 텍스트 후보입니다.",
+            "언론사 원문과 공시 원문 확인 전에는 확정 원인으로 쓰면 안 됩니다.",
+        ],
     }
 
 

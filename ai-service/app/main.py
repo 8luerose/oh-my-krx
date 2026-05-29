@@ -29,6 +29,7 @@ class ChatRequest(BaseModel):
     currentDecisionSummary: dict[str, Any] | None = None
     portfolioContext: dict[str, Any] | None = None
     events: list[dict[str, Any]] = Field(default_factory=list)
+    newsHeadlines: list[dict[str, Any]] = Field(default_factory=list)
     terms: list[dict[str, Any]] = Field(default_factory=list)
 
 
@@ -236,6 +237,26 @@ def _build_retrieval_documents(req: ChatRequest, subject: str, code: str, topic_
                 "basisDate": event_date,
             })
 
+    for index, headline in enumerate((req.newsHeadlines or [])[:8], start=1):
+        if not isinstance(headline, dict):
+            continue
+        title = _clean(headline.get("title") or headline.get("summary"), "뉴스 헤드라인")
+        documents.append({
+            "id": f"news-headline-{index}",
+            "type": _clean(headline.get("sourceType"), "news"),
+            "title": title,
+            "text": _compact({
+                "title": title,
+                "summary": headline.get("summary"),
+                "sentiment": headline.get("sentiment"),
+                "matchedKeywords": headline.get("matchedKeywords"),
+                "causalFactors": headline.get("causalFactors"),
+                "evidenceLevel": headline.get("evidenceLevel"),
+                "url": headline.get("url"),
+            }),
+            "basisDate": basis_date,
+        })
+
     for index, term in enumerate((req.terms or [])[:6], start=1):
         documents.append({
             "id": f"term-{index}",
@@ -280,10 +301,12 @@ def _build_grounding_report(
     event_ids = sorted(doc_id for doc_id in ids if doc_id.startswith("event-") and "-evidence-" not in doc_id and "-causal-" not in doc_id)
     evidence_ids = sorted(doc_id for doc_id in ids if "-evidence-" in doc_id)
     causal_ids = sorted(doc_id for doc_id in ids if "-causal-" in doc_id)
+    news_ids = sorted(doc_id for doc_id in ids if doc_id.startswith("news-headline-"))
     term_ids = sorted(doc_id for doc_id in ids if doc_id.startswith("term-"))
     add_claim("차트 이벤트를 근거로 사용", event_ids[:6])
     add_claim("뉴스/공시/DART/토론 evidence 후보를 근거로 사용", evidence_ids[:8])
     add_claim("출처별 원인 점수와 텍스트 신호를 근거로 사용", causal_ids[:8])
+    add_claim("국내 뉴스 헤드라인을 근거로 사용", news_ids[:8])
     add_claim("초보자 용어 사전을 근거로 사용", term_ids[:6])
 
     missing: list[str] = []
@@ -299,6 +322,8 @@ def _build_grounding_report(
         missing.append("차트 이벤트 후보가 요청에 포함되지 않았습니다.")
     if req.events and not evidence_ids and not causal_ids:
         missing.append("이벤트 원인 후보의 뉴스/공시/DART evidence가 요청에 포함되지 않았습니다.")
+    if req.stockCode and not news_ids:
+        missing.append("국내 뉴스 헤드라인 후보가 요청에 포함되지 않았습니다.")
     if not used_llm:
         reason = _clean(llm_meta.get("fallbackReason"), "LLM 설정 또는 호출 실패")
         missing.append(f"실시간 LLM 생성 미사용: {reason}")
@@ -321,7 +346,7 @@ def _build_llm_prompt(req: ChatRequest, subject: str, code: str, topic_type: str
     )
     system = (
         "너는 한국 주식 초보자를 위한 AI 리서치 보조자다. "
-        "반드시 제공된 검색/브리프/차트/이벤트/용어 근거 안에서만 답하고, "
+        "반드시 제공된 검색/브리프/차트/이벤트/뉴스/용어 근거 안에서만 답하고, "
         "매수 또는 매도를 지시하지 말고 조건/검토/시나리오 표현만 사용한다. "
         "출처가 부족하면 부족하다고 말한다. "
         "근거 문장에는 반드시 최소 2개의 근거 문서 id를 대괄호 형식으로 함께 언급한다. "
@@ -461,6 +486,7 @@ def _build_structured_answer(
     limitations: list[str],
 ) -> dict[str, Any]:
     events = req.events or []
+    news_headlines = req.newsHeadlines or []
     indicator = req.indicatorSnapshot if isinstance(req.indicatorSnapshot, dict) else None
     decision = req.currentDecisionSummary if isinstance(req.currentDecisionSummary, dict) else None
     portfolio = _portfolio_guidance(req.portfolioContext if isinstance(req.portfolioContext, dict) else None)
@@ -497,6 +523,13 @@ def _build_structured_answer(
             f"등락률 {_clean(event.get('priceChangeRate'))}%, 거래량 {_clean(event.get('volumeChangeRate'))}%, "
             f"해석 {_label(event.get('sentimentForPrice'))}"
         )
+
+    for headline in news_headlines[:3]:
+        if isinstance(headline, dict):
+            evidence.append(
+                f"뉴스: {_clean(headline.get('title') or headline.get('summary'), '뉴스 제목 확인 필요')} "
+                f"해석 {_label(headline.get('sentiment'))}"
+            )
 
     if indicator:
         evidence.append("지표: " + _clean(indicator.get("beginnerSummary"), "이동평균선 근거가 전달되었습니다."))
@@ -988,6 +1021,29 @@ def _event_sentiment_score(events: list[dict[str, Any]]) -> int:
     return round(_clamp(score, -100, 100))
 
 
+def _headline_sentiment_score(headlines: list[dict[str, Any]]) -> int:
+    score = 0.0
+    for headline in headlines[:8]:
+        if not isinstance(headline, dict):
+            continue
+        sentiment = _clean(headline.get("sentiment"), "").lower()
+        if sentiment == "positive":
+            score += 10
+        elif sentiment == "negative":
+            score -= 10
+        elif sentiment == "mixed":
+            score += 1
+        factors = headline.get("causalFactors") or headline.get("matchedKeywords") or []
+        if isinstance(factors, str):
+            factors = [factors]
+        factor_text = " ".join(str(item) for item in factors[:8]).lower()
+        if any(word in factor_text for word in ["실적", "수주", "개선", "증가", "호재", "성장", "흑자"]):
+            score += 3
+        if any(word in factor_text for word in ["적자", "감소", "우려", "리스크", "소송", "규제", "악재"]):
+            score -= 3
+    return round(_clamp(score, -60, 60))
+
+
 def _probabilities_from_score(score: int) -> dict[str, int]:
     up = _clamp(45 + score * 0.32, 15, 75)
     down = _clamp(45 - score * 0.32, 15, 75)
@@ -1092,8 +1148,17 @@ def _after_market_comment(subject: str, decision: str, score: int, probabilities
     )
 
 
-def _headlines_from_events(events: list[dict[str, Any]]) -> list[str]:
+def _headlines_from_context(events: list[dict[str, Any]], news_headlines: list[dict[str, Any]]) -> list[str]:
     headlines: list[str] = []
+    for headline in news_headlines[:8]:
+        if not isinstance(headline, dict):
+            continue
+        title = _clean(headline.get("title") or headline.get("summary"), "")
+        sentiment = _label(headline.get("sentiment"))
+        if title:
+            line = f"{title} ({sentiment})"
+            if line not in headlines:
+                headlines.append(line)
     for event in events[:6]:
         title = _clean(event.get("title"), "")
         if title and title not in headlines:
@@ -1134,13 +1199,14 @@ def _fallback_ollama_insights(
     llm_meta: dict[str, Any],
 ) -> dict[str, Any]:
     events = req.events or []
-    score = _event_sentiment_score(events)
+    news_headlines = req.newsHeadlines or []
+    score = round(_clamp(_event_sentiment_score(events) + _headline_sentiment_score(news_headlines), -100, 100))
     probabilities = _probabilities_from_score(score)
     ma20 = _ma20_context(req)
     position = ma20["position"]
     decision = _decision_from_inputs(score, position)
     decision_summary = req.currentDecisionSummary if isinstance(req.currentDecisionSummary, dict) else {}
-    headlines = _headlines_from_events(events)
+    headlines = _headlines_from_context(events, news_headlines)
     portfolio = _portfolio_guidance(req.portfolioContext if isinstance(req.portfolioContext, dict) else None)
     summary_points = _summary_points(req.summary)
     missing_reason = _clean(llm_meta.get("fallbackReason"), "Ollama 모델 설정 또는 호출 확인 필요")
@@ -1397,7 +1463,8 @@ def chat(req: ChatRequest):
     if code:
         sources.insert(1, {"title": "종목 차트 API", "type": "ohlcv", "url": f"/api/stocks/{code}/chart"})
         sources.insert(2, {"title": "종목 이벤트 API", "type": "events", "url": f"/api/stocks/{code}/events"})
-        sources.insert(3, {"title": "조건형 거래 구간 API", "type": "trade_zones", "url": f"/api/stocks/{code}/trade-zones"})
+        sources.insert(3, {"title": "종목 뉴스 헤드라인 API", "type": "news", "url": f"/api/stocks/{code}/news"})
+        sources.insert(4, {"title": "조건형 거래 구간 API", "type": "trade_zones", "url": f"/api/stocks/{code}/trade-zones"})
 
     llm_answer, llm_meta = _call_configured_llm(
         _build_llm_prompt(req, subject, code, topic_type, basis_date, retrieval_documents)

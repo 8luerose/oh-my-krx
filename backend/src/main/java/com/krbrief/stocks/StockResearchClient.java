@@ -18,6 +18,7 @@ public class StockResearchClient {
   private final RestClient http;
   private final Map<String, CachedValue<StockChartDto>> chartCache = new ConcurrentHashMap<>();
   private final Map<String, CachedValue<StockEventsDto>> eventsCache = new ConcurrentHashMap<>();
+  private final Map<String, CachedValue<StockNewsDto>> newsCache = new ConcurrentHashMap<>();
   private final Map<String, CachedValue<StockUniverseDto>> universeCache = new ConcurrentHashMap<>();
   private final Map<String, CachedValue<StockSectorUniverseDto>> sectorCache = new ConcurrentHashMap<>();
   private final Map<String, CachedValue<StockThemeUniverseDto>> themeCache = new ConcurrentHashMap<>();
@@ -83,6 +84,36 @@ public class StockResearchClient {
       throw e;
     } catch (RestClientException e) {
       throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "marketdata_events_error", e);
+    }
+  }
+
+  public StockNewsDto news(String code, int limit) {
+    int safeLimit = Math.max(1, Math.min(limit, 12));
+    return cached(newsCache, "news:" + code + ":" + safeLimit, () -> fetchNews(code, safeLimit));
+  }
+
+  private StockNewsDto fetchNews(String code, int limit) {
+    try {
+      StockNewsDto res =
+          http
+              .get()
+              .uri(
+                  uriBuilder ->
+                      uriBuilder
+                          .path("/stocks/{code}/news")
+                          .queryParam("limit", limit)
+                          .build(code))
+              .accept(MediaType.APPLICATION_JSON)
+              .retrieve()
+              .body(StockNewsDto.class);
+      if (res == null) {
+        throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "marketdata_empty_news_response");
+      }
+      return res;
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (RestClientException e) {
+      throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "marketdata_news_error", e);
     }
   }
 

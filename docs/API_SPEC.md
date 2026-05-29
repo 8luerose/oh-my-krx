@@ -588,6 +588,56 @@ pykrx 실패 시 기존 소스(naver) 및 내부 fallback을 사용.
 
 ---
 
+## 14-1) 종목 뉴스 헤드라인 조회
+
+### `GET /api/stocks/{code}/news?limit=8`
+
+선택 종목의 국내 뉴스 검색 헤드라인 후보를 조회한다. 이 응답은 Ollama 인사이트의 `newsHeadlines` 입력으로 사용되며, 뉴스 제목/요약 기반 후보 신호라서 원문 확인 전에는 확정 원인으로 쓰지 않는다.
+
+#### Path Parameters
+
+- `code` (required): 6자리 한국 종목 코드. 예: `005930`
+
+#### Query Parameters
+
+- `limit` (optional): 1~12, 기본 `8`
+
+#### 성공 응답 (200)
+
+```json
+{
+  "code": "005930",
+  "name": "삼성전자",
+  "asOf": "2026-05-30",
+  "source": "naver_news_search_text",
+  "queryUrl": "https://search.naver.com/search.naver?where=news&query=...",
+  "headlines": [
+    {
+      "title": "삼성전자 반도체 실적 개선 기대",
+      "url": "https://...",
+      "sourceType": "news",
+      "sentiment": "positive",
+      "matchedKeywords": ["실적", "반도체"],
+      "causalFactors": ["실적/이익 개선"],
+      "evidenceLevel": "search_result",
+      "summary": "뉴스 검색 결과에서 감지된 요약 후보"
+    }
+  ],
+  "limitations": [
+    "네이버 뉴스 검색 결과의 제목/요약 텍스트 후보입니다.",
+    "언론사 원문과 공시 원문 확인 전에는 확정 원인으로 쓰면 안 됩니다."
+  ]
+}
+```
+
+#### 응답 정책
+
+- `sentiment`는 `positive | negative | mixed | neutral` 중 하나다.
+- 이 API는 종목 선택 자체를 DB에 저장하지 않는다.
+- 프론트는 이 값을 AI context의 `newsHeadlines`로 넘기고, backend는 ai-service 호출 전에 top-level 필드로 노출한다.
+
+---
+
 ## 15) 종목 거래 구간 조회
 
 ### `GET /api/stocks/{code}/trade-zones?range=1M|3M|6M|1Y|3Y&interval=daily|weekly|monthly&riskMode=aggressive|neutral|conservative`
@@ -975,7 +1025,7 @@ ai-service의 OpenAI-compatible 또는 Anthropic-compatible LLM 설정 상태를
 
 ### `POST /api/ai/ollama/insights`
 
-선택 종목의 차트, 이벤트, 거래 구간, 브리프 맥락을 받아 로컬 Ollama 기반 인사이트 3종을 반환한다. Ollama 모델이 설정되지 않았거나 호출에 실패하면 같은 응답 구조로 `mode=ollama_fallback_rule_based` 규칙형 미리보기를 반환한다.
+선택 종목의 차트, 이벤트, 국내 뉴스 헤드라인, 거래 구간, 브리프 맥락을 받아 로컬 Ollama 기반 인사이트 3종을 반환한다. Ollama 모델이 설정되지 않았거나 호출에 실패하면 같은 응답 구조로 `mode=ollama_fallback_rule_based` 규칙형 미리보기를 반환한다.
 
 #### 요청 예시
 
@@ -984,7 +1034,14 @@ ai-service의 OpenAI-compatible 또는 Anthropic-compatible LLM 설정 상태를
   "question": "삼성전자 지금 사도 되나요?",
   "context": {
     "stockCode": "005930",
-    "stockName": "삼성전자"
+    "stockName": "삼성전자",
+    "newsHeadlines": [
+      {
+        "title": "삼성전자 반도체 실적 개선 기대",
+        "sentiment": "positive",
+        "matchedKeywords": ["실적", "반도체"]
+      }
+    ]
   }
 }
 ```
@@ -1031,6 +1088,7 @@ ai-service의 OpenAI-compatible 또는 Anthropic-compatible LLM 설정 상태를
 
 - 매수/매도 지시가 아니라 조건형 의견만 제공한다.
 - `newsSentiment.nextTradingDay` 확률은 이벤트/뉴스 후보 기반 참고 지표이며 투자 성과를 보장하지 않는다.
+- `retrieval.documents`에는 `news-headline-*` 문서가 포함될 수 있으며, 이는 국내 뉴스 헤드라인 후보가 Ollama 프롬프트 근거로 들어갔음을 뜻한다.
 - 응답 생성 기록은 `/api/ai/chat`과 동일하게 `ai_chat_interactions`에 감사 로그로 저장된다.
 - 로컬 Ollama를 쓰려면 `OLLAMA_BASE_URL`, `OLLAMA_MODEL`을 지정한다.
 
