@@ -19,9 +19,18 @@ export function useWorkspace(initialCode = '005930', initialInterval = 'daily') 
       setError(null);
       try {
         const workspaceData = await loadStockCoreWorkspace(activeCode, interval);
+        const workspaceWithPendingAi = {
+          ...workspaceData,
+          ai: {
+            ...workspaceData.ai,
+            aiLayerStatus: 'loading',
+            llmProvider: 'ollama',
+            modeLabel: 'Ollama 로컬 LLM 준비 중'
+          }
+        };
         if (mounted && requestId === requestIdRef.current) {
           hasLoadedRef.current = true;
-          setData(workspaceData);
+          setData(workspaceWithPendingAi);
           setLoading(false);
           prefetchStockWorkspaces(activeCode, interval);
           const loadAiLayer = async () => {
@@ -38,6 +47,7 @@ export function useWorkspace(initialCode = '005930', initialInterval = 'daily') 
                   ai: {
                     ...current.ai,
                     ollamaInsights,
+                    aiLayerStatus: 'ready',
                     modeLabel: ollamaInsights.modeLabel,
                     llmModel: ollamaInsights.model,
                     llmProvider: 'ollama',
@@ -46,7 +56,21 @@ export function useWorkspace(initialCode = '005930', initialInterval = 'daily') 
                 };
               });
             } catch {
-              // Keep the instant rule-based workspace visible while the slower AI layer fails or retries later.
+              if (mounted && requestId === requestIdRef.current) {
+                setData((current) => {
+                  if (!current || current.stock?.code !== workspaceData.stock?.code || current.chart?.interval !== workspaceData.chart?.interval) {
+                    return current;
+                  }
+                  return {
+                    ...current,
+                    ai: {
+                      ...current.ai,
+                      aiLayerStatus: 'ollama_failed',
+                      modeLabel: 'Ollama 응답 지연, 규칙형 근거 유지'
+                    }
+                  };
+                });
+              }
             }
 
             if (ollamaInsights?.mode === 'ollama_llm') return;
@@ -58,7 +82,18 @@ export function useWorkspace(initialCode = '005930', initialInterval = 'daily') 
                 if (!current || current.stock?.code !== workspaceData.stock?.code || current.chart?.interval !== workspaceData.chart?.interval) {
                   return current;
                 }
-                return { ...current, ai: { ...ai, ollamaInsights: current.ai?.ollamaInsights } };
+                return {
+                  ...current,
+                  ai: {
+                    ...ai,
+                    ollamaInsights: current.ai?.ollamaInsights,
+                    aiLayerStatus: current.ai?.ollamaInsights ? 'ready' : 'fallback_ready',
+                    modeLabel: current.ai?.ollamaInsights ? current.ai.modeLabel : ai.modeLabel,
+                    llmModel: current.ai?.ollamaInsights ? current.ai.llmModel : ai.llmModel,
+                    llmProvider: current.ai?.ollamaInsights ? current.ai.llmProvider : ai.llmProvider,
+                    llmUsed: current.ai?.ollamaInsights ? current.ai.llmUsed : ai.llmUsed
+                  }
+                };
               });
             } catch {
               // The core chart remains usable without the secondary AI chat response.

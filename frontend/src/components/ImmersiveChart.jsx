@@ -138,6 +138,7 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
           zones={zones}
           events={events}
           indicatorSnapshot={indicatorSnapshot}
+          ai={ai}
           learningMode={learningMode}
           onTermClick={onTermClick}
         />

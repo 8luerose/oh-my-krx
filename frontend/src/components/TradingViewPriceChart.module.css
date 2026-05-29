@@ -212,6 +212,95 @@
   overflow-wrap: anywhere;
 }
 
+.aiDecisionPanel {
+  position: absolute;
+  left: clamp(16px, 5vw, 72px);
+  top: 372px;
+  z-index: 4;
+  display: grid;
+  gap: 9px;
+  width: min(380px, 36vw);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 8px;
+  background: rgba(8, 13, 24, 0.64);
+  color: rgba(226, 232, 240, 0.84);
+  padding: 12px;
+  pointer-events: none;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.aiDecisionBuy { border-color: rgba(34, 197, 94, 0.34); }
+.aiDecisionSell { border-color: rgba(239, 68, 68, 0.34); }
+.aiDecisionWatch { border-color: rgba(245, 158, 11, 0.32); }
+
+.aiDecisionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.aiDecisionHeader span,
+.aiDecisionPanel small {
+  color: rgba(226, 232, 240, 0.58);
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.aiDecisionHeader strong {
+  border-radius: 999px;
+  color: #f8fafc;
+  font-size: 0.82rem;
+  font-weight: 950;
+  line-height: 1.2;
+  padding: 6px 9px;
+  white-space: nowrap;
+}
+
+.aiDecisionBuy .aiDecisionHeader strong { background: rgba(34, 197, 94, 0.2); color: #bbf7d0; }
+.aiDecisionSell .aiDecisionHeader strong { background: rgba(239, 68, 68, 0.2); color: #fecaca; }
+.aiDecisionWatch .aiDecisionHeader strong { background: rgba(245, 158, 11, 0.18); color: #fde68a; }
+
+.aiDecisionPanel p {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.78);
+  font-size: 0.8rem;
+  font-weight: 720;
+  line-height: 1.44;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.aiDecisionStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.aiDecisionStats span {
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 7px;
+  background: rgba(15, 23, 42, 0.42);
+  color: rgba(226, 232, 240, 0.66);
+  font-size: 0.72rem;
+  font-weight: 820;
+  line-height: 1.25;
+  padding: 7px;
+  text-align: center;
+  word-break: keep-all;
+}
+
+.aiDecisionStats strong {
+  display: block;
+  color: #f8fafc;
+  font-size: 0.82rem;
+  font-weight: 950;
+  margin-top: 2px;
+}
+
 .zoneRail {
   position: absolute;
   right: clamp(16px, 5vw, 72px);
@@ -414,6 +503,43 @@
   }
 
   .signalPanel p {
+    display: none;
+  }
+
+  .aiDecisionPanel {
+    left: 12px;
+    right: 12px;
+    top: 210px;
+    width: auto;
+    gap: 7px;
+    padding: 10px;
+  }
+
+  .aiDecisionHeader strong {
+    font-size: 0.74rem;
+    padding: 5px 7px;
+  }
+
+  .aiDecisionPanel p {
+    font-size: 0.74rem;
+    line-height: 1.36;
+  }
+
+  .aiDecisionStats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .aiDecisionStats span {
+    font-size: 0.64rem;
+    padding: 6px 4px;
+  }
+
+  .aiDecisionStats strong {
+    font-size: 0.72rem;
+  }
+
+  .aiDecisionPanel small {
     display: none;
   }
 

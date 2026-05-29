@@ -53,6 +53,26 @@ function averageVolume(rows, count = 20) {
   return source.reduce((sum, value) => sum + value, 0) / source.length;
 }
 
+function compactText(value, fallback = '확인 필요', limit = 90) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!text) return fallback;
+  return text.length > limit ? `${text.slice(0, limit - 3)}...` : text;
+}
+
+function decisionTone(decision) {
+  if (String(decision || '').includes('매수')) return 'buy';
+  if (String(decision || '').includes('매도')) return 'sell';
+  return 'watch';
+}
+
+function normalizeDecision(value) {
+  const text = compactText(value, '관망', 20);
+  if (text === 'buy' || text === 'buy_review') return '매수 검토';
+  if (text === 'sell' || text === 'sell_review') return '매도 검토';
+  if (text === 'watch' || text === 'neutral') return '관망';
+  return text;
+}
+
 function parsePriceRange(priceStr) {
   if (!priceStr) return null;
   const numbers = String(priceStr).replace(/,/g, '').match(/\d+/g);
@@ -107,6 +127,7 @@ export default function TradingViewPriceChart({
   zones = [],
   events = [],
   indicatorSnapshot,
+  ai,
   learningMode,
   onTermClick
 }) {
@@ -205,6 +226,59 @@ export default function TradingViewPriceChart({
       aboveMa20
     };
   }, [indicatorSnapshot, prepared.rows]);
+
+  const aiDecision = useMemo(() => {
+    const insights = ai?.ollamaInsights;
+    const aiLayerStatus = ai?.aiLayerStatus || (insights ? 'ready' : '');
+    const isWaitingForOllama = aiLayerStatus === 'loading' && !insights;
+    const isOllamaDelayed = aiLayerStatus === 'ollama_failed' && !insights;
+    const advice = insights?.stockAdvice || {};
+    const sentiment = insights?.newsSentiment || {};
+    const report = insights?.afterMarketReport || {};
+    const probabilities = sentiment?.nextTradingDay || {};
+    const decision = isWaitingForOllama
+      ? '분석 중'
+      : normalizeDecision(advice.decision || ai?.chartState?.state || '관망');
+    const summary = isWaitingForOllama
+      ? 'Ollama가 차트, 뉴스, 매매 구간을 합쳐 판단하는 중입니다.'
+      : compactText(
+        advice.summary || ai?.conclusion,
+        isOllamaDelayed ? 'Ollama 응답이 늦어 현재는 규칙형 차트 근거를 보여줍니다.' : '차트와 뉴스 근거를 모으는 중입니다.',
+        96
+      );
+    const up = Number(probabilities.up);
+    const down = Number(probabilities.down);
+    const flat = Number(probabilities.flat);
+    const model = insights?.model || ai?.llmModel || '';
+    const modeLabel = insights?.modeLabel || ai?.modeLabel || '근거 기반 AI';
+    const title = insights
+      ? (insights.mode === 'ollama_llm' ? 'Ollama AI 판단' : 'Ollama 미리보기')
+      : isWaitingForOllama
+        ? 'Ollama AI 준비 중'
+        : isOllamaDelayed
+          ? 'Ollama 응답 지연'
+          : ai?.llmProvider === 'ollama'
+            ? 'Ollama AI 판단'
+            : 'AI 판단 준비 중';
+    const statusLabel = isWaitingForOllama
+      ? '로컬 LLM이 차트와 뉴스를 읽는 중'
+      : isOllamaDelayed
+        ? 'Ollama 지연 · 규칙형 근거 유지'
+        : `${modeLabel}${model ? ` · ${model}` : ''}`;
+
+    return {
+      decision,
+      tone: decisionTone(decision),
+      summary,
+      up: Number.isFinite(up) ? up : null,
+      down: Number.isFinite(down) ? down : null,
+      flat: Number.isFinite(flat) ? flat : null,
+      mood: compactText(report.mood, '장후 분위기 확인 중', 24),
+      title,
+      modeLabel: compactText(statusLabel, '근거 기반 AI', 48),
+      live: insights?.mode === 'ollama_llm' || ai?.llmUsed
+    };
+  }, [ai]);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -457,6 +531,29 @@ export default function TradingViewPriceChart({
           <p>
             20일선 {formatCurrency(chartMetrics.ma20)} · 지지선 {formatCurrency(chartMetrics.support)} · 저항선 {formatCurrency(chartMetrics.resistance)}
           </p>
+        </aside>
+      )}
+      {aiDecision && (
+        <aside
+          className={clsx(
+            styles.aiDecisionPanel,
+            aiDecision.tone === 'buy' && styles.aiDecisionBuy,
+            aiDecision.tone === 'sell' && styles.aiDecisionSell,
+            aiDecision.tone === 'watch' && styles.aiDecisionWatch
+          )}
+          aria-label="Ollama AI 매매 검토"
+        >
+          <div className={styles.aiDecisionHeader}>
+            <span>{aiDecision.title}</span>
+            <strong>{aiDecision.decision}</strong>
+          </div>
+          <p>{aiDecision.summary}</p>
+          <div className={styles.aiDecisionStats}>
+            <span>상승 <strong>{aiDecision.up === null ? '확인 중' : `${aiDecision.up}%`}</strong></span>
+            <span>하락 <strong>{aiDecision.down === null ? '확인 중' : `${aiDecision.down}%`}</strong></span>
+            <span>{aiDecision.mood}</span>
+          </div>
+          <small>{aiDecision.modeLabel}</small>
         </aside>
       )}
       {zoneSummaries.length > 0 && (
