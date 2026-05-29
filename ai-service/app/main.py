@@ -883,6 +883,7 @@ def _llm_status() -> dict[str, Any]:
     openai_model = os.getenv("LLM_MODEL", "").strip()
     openai_base_url = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1").rstrip("/")
     openai_key_set = bool(_openai_compatible_api_key(openai_base_url))
+    llm_timeout = float(os.getenv("LLM_TIMEOUT_SECONDS", "20"))
     anthropic_key_set = bool(_first_env("ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY"))
     anthropic_model = _first_env(
         "ANTHROPIC_MODEL",
@@ -893,6 +894,7 @@ def _llm_status() -> dict[str, Any]:
     anthropic_base_url = os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com").rstrip("/")
     ollama_model = _ollama_model()
     ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+    ollama_timeout = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", os.getenv("LLM_TIMEOUT_SECONDS", "20")))
     preferred = os.getenv("LLM_PROVIDER", "").strip().lower()
 
     openai_configured = openai_key_set and bool(openai_model)
@@ -954,10 +956,11 @@ def _llm_status() -> dict[str, Any]:
                 "modelConfigured": bool(ollama_model),
                 "configured": ollama_configured,
                 "baseUrl": ollama_base_url,
+                "timeoutSeconds": ollama_timeout,
             },
         },
         "fallbackMode": "rag_fallback_rule_based",
-        "timeoutSeconds": float(os.getenv("LLM_TIMEOUT_SECONDS", "20")),
+        "timeoutSeconds": ollama_timeout if provider == "ollama" else llm_timeout,
         "maxTokens": int(os.getenv("LLM_MAX_TOKENS", "650")),
     }
 
@@ -1313,7 +1316,7 @@ def _fallback_ollama_insights(
     up_reasons, down_risks = _headline_reason_lists(news_headlines)
     portfolio = _portfolio_guidance(req.portfolioContext if isinstance(req.portfolioContext, dict) else None)
     summary_points = _summary_points(req.summary)
-    missing_reason = _clean(llm_meta.get("fallbackReason"), "Ollama 모델 설정 또는 호출 확인 필요")
+    fallback_reason = _clean(llm_meta.get("fallbackReason"), "")
     decision_reason = _decision_reason(decision, score, ma20)
     report_comment = _after_market_comment(subject, decision, score, probabilities, summary_points)
 
@@ -1390,7 +1393,7 @@ def _fallback_ollama_insights(
             "뉴스 제목만으로 판단하지 말고 가격과 거래량 반응을 같이 봅니다.",
         ],
         "limitations": [
-            missing_reason,
+            *([fallback_reason] if fallback_reason else []),
             "국내 뉴스 헤드라인은 이벤트 evidence 후보를 사용하며, 원문 수집 품질에 따라 정확도가 달라집니다.",
             "재무 데이터는 현재 검색/브리프/학습 용어 수준의 제한된 맥락만 반영합니다.",
         ],
@@ -1648,6 +1651,8 @@ def _after_market_report_fallback(
     elif "관심" in mood:
         market_bias = "관심 확대"
 
+    fallback_reason = _clean(llm_meta.get("fallbackReason"), "")
+
     return {
         "mode": "ollama_fallback_rule_based",
         "provider": "ollama",
@@ -1672,7 +1677,7 @@ def _after_market_report_fallback(
             "mostMentioned": _clean(summary.get("mostMentioned"), ""),
         },
         "limitations": [
-            _clean(llm_meta.get("fallbackReason"), "Ollama 모델 설정 또는 호출 확인 필요"),
+            *([fallback_reason] if fallback_reason else []),
             "리포트는 저장된 장후 브리프와 제공된 시장 데이터 기준이며 실시간 장중 데이터는 아닙니다.",
         ],
         "retrieval": {
