@@ -193,6 +193,29 @@
   word-break: keep-all;
 }
 
+.reportTitleMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 0;
+}
+
+.reportTitleMeta b {
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.11);
+  color: #bbf7d0;
+  font-size: 0.7rem;
+  font-weight: 900;
+  line-height: 1.2;
+  padding: 4px 7px;
+  text-align: right;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
 .ollamaAnswer {
   color: var(--color-text-secondary);
   font-size: 0.82rem;
@@ -329,6 +352,20 @@
   font-size: 0.8rem;
   line-height: 1.42;
   margin: 0;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.reportStorageNote {
+  display: block;
+  margin-top: 9px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  color: #bbf7d0;
+  font-size: 0.73rem;
+  font-weight: 800;
+  line-height: 1.35;
+  padding-top: 8px;
   white-space: normal;
   word-break: keep-all;
   overflow-wrap: anywhere;
@@ -584,6 +621,20 @@
   .sentimentReasonGrid { grid-template-columns: 1fr; }
   .newsGrid { grid-template-columns: 1fr; }
   .checklist { grid-template-columns: 1fr; }
+
+  .ollamaTitleRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .reportTitleMeta {
+    align-items: flex-start;
+  }
+
+  .reportTitleMeta span,
+  .reportTitleMeta b {
+    text-align: left;
+  }
 
   .footer span {
     flex-basis: 100%;

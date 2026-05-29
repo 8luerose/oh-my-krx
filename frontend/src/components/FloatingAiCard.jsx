@@ -3,10 +3,26 @@ import { Bot, ChevronUp, ChevronDown, CheckCircle2, XCircle, ShieldAlert, Clock3
 import clsx from 'clsx';
 import styles from './FloatingAiCard.module.css';
 
+function marketReportStorageLabel(storage) {
+  if (!storage?.saved || storage.table !== 'ai_after_market_reports') return '';
+  const date = storage.date ? `${storage.date} · ` : '';
+  return `${date}${storage.cached ? 'DB 저장본 재사용' : '생성 후 DB 저장'}`;
+}
+
+function marketReportStorageNote(storage) {
+  if (!storage?.saved || storage.table !== 'ai_after_market_reports') return '';
+  if (storage.cached) return storage.note || '저장된 장후 AI 리포트를 재사용했습니다.';
+  const auditId = storage.audit?.id ? `감사 로그 #${storage.audit.id}` : '감사 로그 저장';
+  return `${storage.note || '장후 AI 리포트 전체 응답을 DB에 저장했습니다.'} ${auditId}`;
+}
+
 export default function FloatingAiCard({ ai, events, asOf }) {
   const [expanded, setExpanded] = useState(false);
 
   if (!ai) return null;
+
+  const reportStorageLabel = marketReportStorageLabel(ai.marketReport?.storage);
+  const reportStorageNote = marketReportStorageNote(ai.marketReport?.storage);
 
   return (
     <details
@@ -43,6 +59,7 @@ export default function FloatingAiCard({ ai, events, asOf }) {
               <span>상승 {ai.ollamaInsights.newsSentiment.nextTradingDay.up}%</span>
               <span>{ai.ollamaInsights.afterMarketReport.mood}</span>
               {ai.marketReport?.mood && <span>장후 {ai.marketReport.mood}</span>}
+              {reportStorageLabel && <span>{reportStorageLabel}</span>}
             </div>
           )}
         </div>
@@ -158,13 +175,16 @@ export default function FloatingAiCard({ ai, events, asOf }) {
             <div className={styles.section}>
               <div className={styles.ollamaTitleRow}>
                 <h4 className={styles.sectionTitle}>시장 전체 장후 리포트</h4>
-                <span>
-                  {ai.marketReport
-                    ? `${ai.marketReport.modeLabel}${ai.marketReport.model ? ` · ${ai.marketReport.model}` : ''}`
-                    : ai.marketReportStatus === 'loading'
-                      ? 'Ollama 장후 리포트 준비 중'
-                      : '장후 리포트 확인 필요'}
-                </span>
+                <div className={styles.reportTitleMeta}>
+                  <span>
+                    {ai.marketReport
+                      ? `${ai.marketReport.modeLabel}${ai.marketReport.model ? ` · ${ai.marketReport.model}` : ''}`
+                      : ai.marketReportStatus === 'loading'
+                        ? 'Ollama 장후 리포트 준비 중'
+                        : '장후 리포트 확인 필요'}
+                  </span>
+                  {reportStorageLabel && <b>{reportStorageLabel}</b>}
+                </div>
               </div>
               <article className={styles.marketReportBox}>
                 <Newspaper size={17} />
@@ -188,6 +208,9 @@ export default function FloatingAiCard({ ai, events, asOf }) {
                         <li key={`${item}-${index}`}>{item}</li>
                       ))}
                     </ul>
+                  )}
+                  {reportStorageNote && (
+                    <span className={styles.reportStorageNote}>{reportStorageNote}</span>
                   )}
                 </div>
               </article>
