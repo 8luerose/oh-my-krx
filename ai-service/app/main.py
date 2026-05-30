@@ -1177,17 +1177,28 @@ def _news_evidence_profile(headlines: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _calibrated_sentiment_score(events: list[dict[str, Any]], headlines: list[dict[str, Any]], profile: dict[str, Any]) -> int:
+def _sentiment_score_breakdown(events: list[dict[str, Any]], headlines: list[dict[str, Any]], profile: dict[str, Any]) -> dict[str, Any]:
     event_score = _event_sentiment_score(events)
     headline_score = _headline_sentiment_score(headlines)
-    score = event_score * 0.55 + headline_score * 0.75
+    raw_score = event_score * 0.55 + headline_score * 0.75
+    adjusted_score = raw_score
+    adjustments: list[str] = []
     if profile.get("headlineCount", 0) < 3:
-        score *= 0.72
+        adjusted_score *= 0.72
+        adjustments.append("뉴스 후보가 3건 미만이라 확률을 보수적으로 낮췄습니다.")
     if profile.get("mixedCount", 0) >= max(2, profile.get("positiveCount", 0) + profile.get("negativeCount", 0)):
-        score *= 0.78
+        adjusted_score *= 0.78
+        adjustments.append("복합 해석 뉴스가 많아 한쪽 방향 확률을 낮췄습니다.")
     if profile.get("factorCount", 0) < 3:
-        score *= 0.82
-    return round(_clamp(score, -70, 70))
+        adjusted_score *= 0.82
+        adjustments.append("원인 키워드가 부족해 뉴스 점수 영향도를 낮췄습니다.")
+    return {
+        "eventScore": round(event_score),
+        "headlineScore": round(headline_score),
+        "rawScore": round(_clamp(raw_score, -100, 100)),
+        "adjustedScore": round(_clamp(adjusted_score, -70, 70)),
+        "adjustments": adjustments or ["뉴스·이벤트 근거 수와 원인 키워드가 기본 기준을 충족했습니다."],
+    }
 
 
 def _probabilities_from_score(score: int) -> dict[str, int]:
@@ -1352,6 +1363,71 @@ def _headline_reason_lists(headlines: list[dict[str, Any]]) -> tuple[list[str], 
     return up_reasons[:3], down_risks[:3]
 
 
+def _headline_analysis_items(headlines: list[dict[str, Any]]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for headline in headlines[:6]:
+        if not isinstance(headline, dict):
+            continue
+        title = _clean(headline.get("title") or headline.get("summary"), "")
+        if not title:
+            continue
+        sentiment = _clean(headline.get("sentiment"), "").lower()
+        if sentiment == "positive":
+            effect = "상승에 우호적"
+        elif sentiment == "negative":
+            effect = "하락 위험"
+        elif sentiment == "mixed":
+            effect = "혼재"
+        else:
+            effect = "중립"
+        rows.append(
+            {
+                "title": title,
+                "sentiment": _label(sentiment),
+                "effect": effect,
+                "reason": _headline_factor_text(headline),
+                "evidenceLevel": _clean(headline.get("evidenceLevel"), "제한적"),
+            }
+        )
+    return rows[:4]
+
+
+def _direction_scenarios(probabilities: dict[str, int], score: int, ma20: dict[str, str]) -> list[str]:
+    up = probabilities.get("up", 0)
+    down = probabilities.get("down", 0)
+    flat = probabilities.get("flat", 0)
+    if up >= down + 8:
+        first = f"상승 우위 시나리오: 시초가 급등보다 20일선 {ma20['ma20']} 위에서 거래량이 붙는지 확인합니다."
+    elif down >= up + 8:
+        first = f"하락 우위 시나리오: 20일선 {ma20['ma20']} 재이탈과 악재성 뉴스 확산 여부를 먼저 봅니다."
+    else:
+        first = "중립 시나리오: 상승·하락 확률 차이가 작아 첫 30분 가격 반응을 확인한 뒤 판단합니다."
+    return [
+        first,
+        f"확률 분포: 상승 {up}%, 하락 {down}%, 횡보 {flat}%로 계산했습니다.",
+        f"뉴스·이벤트 보정 점수는 {score}점이며, 절대값이 작을수록 관망 비중이 커집니다.",
+    ]
+
+
+def _sentiment_action_guide(decision: str, probabilities: dict[str, int]) -> list[str]:
+    up = probabilities.get("up", 0)
+    down = probabilities.get("down", 0)
+    if decision == "매수 검토":
+        return [
+            "바로 추격하지 말고 전일 고점 돌파 후 거래량 유지 여부를 확인합니다.",
+            "상승 확률이 높아도 악재 헤드라인이 남아 있으면 분할 접근만 검토합니다.",
+        ]
+    if decision == "매도 검토":
+        return [
+            "보유 중이면 지지선 이탈 기준을 먼저 정하고 비중 축소 조건을 확인합니다.",
+            "하락 확률이 높을 때는 반등보다 거래량 동반 하락 여부를 먼저 봅니다.",
+        ]
+    return [
+        f"상승 {up}%·하락 {down}%처럼 한쪽 우위가 약하면 새 매수보다 관망이 우선입니다.",
+        "뉴스 원문과 장중 거래량이 같은 방향으로 확인될 때만 다음 판단으로 넘어갑니다.",
+    ]
+
+
 def _summary_points(summary: dict[str, Any] | None) -> list[str]:
     if not isinstance(summary, dict):
         return ["저장된 장후 브리프가 부족해 종목 차트와 이벤트 중심으로 요약합니다."]
@@ -1382,13 +1458,15 @@ def _fallback_ollama_insights(
     events = req.events or []
     news_headlines = req.newsHeadlines or []
     news_profile = _news_evidence_profile(news_headlines)
-    score = _calibrated_sentiment_score(events, news_headlines, news_profile)
+    score_breakdown = _sentiment_score_breakdown(events, news_headlines, news_profile)
+    score = score_breakdown["adjustedScore"]
     probabilities = _probabilities_from_score(score)
     ma20 = _ma20_context(req)
     position = ma20["position"]
     decision = _decision_from_inputs(score, position)
     decision_summary = req.currentDecisionSummary if isinstance(req.currentDecisionSummary, dict) else {}
     headlines = _headlines_from_context(events, news_headlines)
+    headline_analysis = _headline_analysis_items(news_headlines)
     up_reasons, down_risks = _headline_reason_lists(news_headlines)
     portfolio = _portfolio_guidance(req.portfolioContext if isinstance(req.portfolioContext, dict) else None)
     fundamentals = _fundamental_guidance(req.fundamentalSnapshot if isinstance(req.fundamentalSnapshot, dict) else None)
@@ -1439,10 +1517,15 @@ def _fallback_ollama_insights(
             "score": score,
             "label": "긍정 우위" if score > 20 else "부정 우위" if score < -20 else "중립",
             "confidence": news_profile["quality"],
+            "confidenceReason": (
+                f"헤드라인 {news_profile['headlineCount']}건 중 원인 키워드가 {news_profile['factorCount']}개 확인됐고, "
+                f"긍정 {news_profile['positiveCount']}건·부정 {news_profile['negativeCount']}건·복합 {news_profile['mixedCount']}건으로 분류했습니다."
+            ),
             "evidenceQuality": (
                 f"뉴스 {news_profile['headlineCount']}건, 긍정 {news_profile['positiveCount']}건, "
                 f"부정 {news_profile['negativeCount']}건, 복합 {news_profile['mixedCount']}건 기준"
             ),
+            "scoreBreakdown": score_breakdown,
             "nextTradingDay": probabilities,
             "summary": (
                 f"최근 이벤트와 뉴스 후보를 보수적으로 보정하면 {score}점입니다. "
@@ -1450,6 +1533,9 @@ def _fallback_ollama_insights(
                 f"근거 품질은 {news_profile['quality']}입니다. 뉴스 원문과 장중 거래량으로 다시 검증해야 합니다."
             ),
             "headlineSignals": headlines or ["뉴스/공시 원문 후보가 부족합니다."],
+            "headlineAnalyses": headline_analysis,
+            "tradingScenarios": _direction_scenarios(probabilities, score, ma20),
+            "actionGuide": _sentiment_action_guide(decision, probabilities),
             "upReasons": up_reasons or ["상승 쪽 근거는 차트와 거래량 반응으로 추가 확인이 필요합니다."],
             "downRisks": down_risks or ["하락 쪽 반대 근거가 부족해도 지지선 이탈 여부는 확인해야 합니다."],
             "caution": news_profile["cautions"][0],

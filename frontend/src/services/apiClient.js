@@ -383,6 +383,32 @@ function normalizeTextList(items, fallback = []) {
   return source.map((item) => humanizeText(item)).filter(Boolean);
 }
 
+function normalizeHeadlineAnalyses(items) {
+  if (!Array.isArray(items)) return [];
+  return items.slice(0, 4).map((item) => {
+    if (typeof item === "string") {
+      return { title: humanizeText(item), sentiment: "확인 필요", effect: "확인 필요", reason: "", evidenceLevel: "" };
+    }
+    return {
+      title: humanizeText(item?.title || item?.summary || ""),
+      sentiment: humanizeText(item?.sentiment || "확인 필요"),
+      effect: humanizeText(item?.effect || "확인 필요"),
+      reason: humanizeText(item?.reason || ""),
+      evidenceLevel: humanizeText(item?.evidenceLevel || "")
+    };
+  }).filter((item) => item.title);
+}
+
+function normalizeScoreBreakdown(breakdown = {}) {
+  return {
+    eventScore: Number.isFinite(Number(breakdown.eventScore)) ? Math.round(Number(breakdown.eventScore)) : 0,
+    headlineScore: Number.isFinite(Number(breakdown.headlineScore)) ? Math.round(Number(breakdown.headlineScore)) : 0,
+    rawScore: Number.isFinite(Number(breakdown.rawScore)) ? Math.round(Number(breakdown.rawScore)) : 0,
+    adjustedScore: Number.isFinite(Number(breakdown.adjustedScore)) ? Math.round(Number(breakdown.adjustedScore)) : 0,
+    adjustments: normalizeTextList(breakdown.adjustments)
+  };
+}
+
 function normalizeOllamaInsights(remote = {}) {
   const advice = remote.stockAdvice || {};
   const sentiment = remote.newsSentiment || {};
@@ -409,7 +435,9 @@ function normalizeOllamaInsights(remote = {}) {
       score: Number.isFinite(Number(sentiment.score)) ? Math.round(Number(sentiment.score)) : 0,
       label: humanizeText(sentiment.label || "중립"),
       confidence: humanizeText(sentiment.confidence || "확인 필요"),
+      confidenceReason: humanizeText(sentiment.confidenceReason || ""),
       evidenceQuality: humanizeText(sentiment.evidenceQuality || "뉴스 근거 품질 확인 필요"),
+      scoreBreakdown: normalizeScoreBreakdown(sentiment.scoreBreakdown),
       nextTradingDay: {
         up: normalizeProbability(nextTradingDay.up),
         down: normalizeProbability(nextTradingDay.down),
@@ -417,6 +445,9 @@ function normalizeOllamaInsights(remote = {}) {
       },
       summary: humanizeText(sentiment.summary || "뉴스/이벤트 후보가 부족합니다."),
       headlineSignals: normalizeTextList(sentiment.headlineSignals),
+      headlineAnalyses: normalizeHeadlineAnalyses(sentiment.headlineAnalyses),
+      tradingScenarios: normalizeTextList(sentiment.tradingScenarios),
+      actionGuide: normalizeTextList(sentiment.actionGuide),
       upReasons: normalizeTextList(sentiment.upReasons),
       downRisks: normalizeTextList(sentiment.downRisks),
       caution: humanizeText(sentiment.caution || "뉴스 제목만으로 확정하지 말고 가격과 거래량 반응을 함께 확인합니다.")

@@ -22,6 +22,19 @@ function probabilityLabel(value) {
   return text.includes('%') ? text : `${text}%`;
 }
 
+function scoreLabel(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '0점';
+  return `${number > 0 ? '+' : ''}${Math.round(number)}점`;
+}
+
+function effectClass(effect = '') {
+  if (effect.includes('상승') || effect.includes('우호')) return styles.effectPositive;
+  if (effect.includes('하락') || effect.includes('위험')) return styles.effectNegative;
+  if (effect.includes('혼재')) return styles.effectMixed;
+  return styles.effectNeutral;
+}
+
 export default function FloatingAiCard({ ai, events, asOf }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -40,6 +53,9 @@ export default function FloatingAiCard({ ai, events, asOf }) {
   const sentimentLabel = newsSentiment.label || '뉴스 감성 확인';
   const sentimentConfidence = newsSentiment.confidence || '확인 중';
   const sentimentSummary = newsSentiment.summary || '뉴스 헤드라인이 다음 거래일 가격 방향에 줄 수 있는 영향을 정리합니다.';
+  const sentimentScore = Number.isFinite(Number(newsSentiment.score))
+    ? Number(newsSentiment.score)
+    : Number(newsSentiment.scoreBreakdown?.adjustedScore || 0);
   const reportMood = ai.marketReport
     ? [ai.marketReport.mood, ai.marketReport.marketBias].filter(Boolean).join(' · ')
     : afterMarketReport.mood || '장후 리포트 확인 중';
@@ -153,12 +169,42 @@ export default function FloatingAiCard({ ai, events, asOf }) {
                       {sentimentLabel} · 근거 {sentimentConfidence}
                     </span>
                     <p>{sentimentSummary}</p>
+                    <div className={styles.sentimentScorePanel} aria-label="뉴스 감성 점수 산식">
+                      <div>
+                        <span>보정 점수</span>
+                        <strong className={sentimentScore > 0 ? styles.posIcon : sentimentScore < 0 ? styles.negIcon : styles.waitIcon}>
+                          {scoreLabel(sentimentScore)}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>이벤트</span>
+                        <strong>{scoreLabel(newsSentiment.scoreBreakdown?.eventScore)}</strong>
+                      </div>
+                      <div>
+                        <span>헤드라인</span>
+                        <strong>{scoreLabel(newsSentiment.scoreBreakdown?.headlineScore)}</strong>
+                      </div>
+                    </div>
+                    {newsSentiment.confidenceReason && (
+                      <p className={styles.sentimentCaution}>{newsSentiment.confidenceReason}</p>
+                    )}
                     {newsSentiment.headlineSignals?.length > 0 && (
                       <ul className={styles.compactList}>
                         {newsSentiment.headlineSignals.slice(0, 3).map((item, index) => (
                           <li key={`${item}-${index}`}>{item}</li>
                         ))}
                       </ul>
+                    )}
+                    {newsSentiment.headlineAnalyses?.length > 0 && (
+                      <div className={styles.headlineAnalysisList} aria-label="뉴스 헤드라인별 해석">
+                        {newsSentiment.headlineAnalyses.slice(0, 3).map((item, index) => (
+                          <article key={`${item.title}-${index}`}>
+                            <b className={effectClass(item.effect)}>{item.effect}</b>
+                            <span>{item.title}</span>
+                            <em>{item.reason}{item.evidenceLevel ? ` · 근거 ${item.evidenceLevel}` : ''}</em>
+                          </article>
+                        ))}
+                      </div>
                     )}
                     {(newsSentiment.upReasons?.length > 0 || newsSentiment.downRisks?.length > 0) && (
                       <div className={styles.sentimentReasonGrid}>
@@ -174,6 +220,23 @@ export default function FloatingAiCard({ ai, events, asOf }) {
                     )}
                     {newsSentiment.caution && (
                       <p className={styles.sentimentCaution}>{newsSentiment.caution}</p>
+                    )}
+                    {newsSentiment.tradingScenarios?.length > 0 && (
+                      <ul className={styles.compactList}>
+                        {newsSentiment.tradingScenarios.slice(0, 2).map((item, index) => (
+                          <li key={`${item}-${index}`}>{item}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {newsSentiment.actionGuide?.length > 0 && (
+                      <div className={styles.nextWatchBox}>
+                        <strong>뉴스 보고 바로 할 행동</strong>
+                        <ul>
+                          {newsSentiment.actionGuide.slice(0, 2).map((item, index) => (
+                            <li key={`${item}-${index}`}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
                   </div>
                 </article>

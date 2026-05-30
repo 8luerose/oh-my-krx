@@ -351,6 +351,113 @@
   overflow-wrap: anywhere;
 }
 
+.sentimentScorePanel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.sentimentScorePanel div {
+  min-width: 0;
+  border: 1px solid rgba(96, 165, 250, 0.14);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.44);
+  padding: 7px;
+}
+
+.sentimentScorePanel span,
+.sentimentScorePanel strong {
+  display: block;
+  min-width: 0;
+  line-height: 1.25;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.sentimentScorePanel span {
+  color: var(--color-text-tertiary);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.sentimentScorePanel strong {
+  color: var(--color-text-primary);
+  font-size: 0.82rem;
+  font-weight: 950;
+  margin-top: 3px;
+}
+
+.headlineAnalysisList {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.headlineAnalysisList article {
+  display: grid;
+  grid-template-columns: minmax(58px, auto) minmax(0, 1fr);
+  gap: 4px 8px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 7px;
+}
+
+.headlineAnalysisList b {
+  align-self: start;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 950;
+  line-height: 1.2;
+  padding: 4px 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.headlineAnalysisList span,
+.headlineAnalysisList em {
+  min-width: 0;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.headlineAnalysisList span {
+  color: var(--color-text-primary);
+  font-size: 0.74rem;
+  font-weight: 850;
+  line-height: 1.32;
+}
+
+.headlineAnalysisList em {
+  grid-column: 2;
+  color: var(--color-text-tertiary);
+  font-size: 0.69rem;
+  font-style: normal;
+  line-height: 1.32;
+}
+
+.effectPositive {
+  background: rgba(34, 197, 94, 0.16);
+  color: #bbf7d0;
+}
+
+.effectNegative {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fecaca;
+}
+
+.effectMixed {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fde68a;
+}
+
+.effectNeutral {
+  background: rgba(148, 163, 184, 0.14);
+  color: #cbd5e1;
+}
+
 .sentimentReasonGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -74,15 +74,44 @@ export function useWorkspace(initialCode = '005930', initialInterval = 'daily') 
               });
             }
           };
-          const loadAiLayer = async () => {
-            let ollamaInsights = null;
+          const mergeAiForCurrentWorkspace = (updater) => {
+            setData((current) => {
+              if (!current || current.stock?.code !== workspaceData.stock?.code || current.chart?.interval !== workspaceData.chart?.interval) {
+                return current;
+              }
+              return updater(current);
+            });
+          };
+          const loadFallbackAiLayer = async () => {
             try {
-              ollamaInsights = await loadStockOllamaInsights(workspaceData, interval);
+              const ai = await loadStockAi(workspaceData, interval);
               if (!mounted || requestId !== requestIdRef.current) return;
-              setData((current) => {
-                if (!current || current.stock?.code !== workspaceData.stock?.code || current.chart?.interval !== workspaceData.chart?.interval) {
-                  return current;
-                }
+              mergeAiForCurrentWorkspace((current) => {
+                const currentAi = current.ai || {};
+                return {
+                  ...current,
+                  ai: {
+                    ...ai,
+                    ollamaInsights: currentAi.ollamaInsights,
+                    marketReport: currentAi.marketReport,
+                    marketReportStatus: currentAi.marketReportStatus,
+                    aiLayerStatus: currentAi.ollamaInsights ? 'ready' : 'fallback_ready',
+                    modeLabel: currentAi.ollamaInsights ? currentAi.modeLabel : ai.modeLabel,
+                    llmModel: currentAi.ollamaInsights ? currentAi.llmModel : ai.llmModel,
+                    llmProvider: currentAi.ollamaInsights ? currentAi.llmProvider : ai.llmProvider,
+                    llmUsed: currentAi.ollamaInsights ? currentAi.llmUsed : ai.llmUsed
+                  }
+                };
+              });
+            } catch {
+              // The core chart remains usable without the secondary AI chat response.
+            }
+          };
+          const loadOllamaLayer = async () => {
+            try {
+              const ollamaInsights = await loadStockOllamaInsights(workspaceData, interval);
+              if (!mounted || requestId !== requestIdRef.current) return;
+              mergeAiForCurrentWorkspace((current) => {
                 return {
                   ...current,
                   ai: {
@@ -98,56 +127,20 @@ export function useWorkspace(initialCode = '005930', initialInterval = 'daily') 
               });
             } catch {
               if (mounted && requestId === requestIdRef.current) {
-                setData((current) => {
-                  if (!current || current.stock?.code !== workspaceData.stock?.code || current.chart?.interval !== workspaceData.chart?.interval) {
-                    return current;
-                  }
-                  return {
-                    ...current,
-                    ai: {
-                      ...current.ai,
-                      aiLayerStatus: 'ollama_failed',
-                      modeLabel: 'Ollama 응답 지연, 규칙형 근거 유지'
-                    }
-                  };
-                });
-              }
-            }
-
-            attachAfterMarketReport();
-            if (ollamaInsights?.mode === 'ollama_llm') {
-              return;
-            }
-
-            try {
-              const ai = await loadStockAi(workspaceData, interval);
-              if (!mounted || requestId !== requestIdRef.current) return;
-              setData((current) => {
-                if (!current || current.stock?.code !== workspaceData.stock?.code || current.chart?.interval !== workspaceData.chart?.interval) {
-                  return current;
-                }
-                return {
+                mergeAiForCurrentWorkspace((current) => ({
                   ...current,
                   ai: {
-                    ...ai,
-                    ollamaInsights: current.ai?.ollamaInsights,
-                    marketReport: current.ai?.marketReport,
-                    marketReportStatus: current.ai?.marketReportStatus,
-                    aiLayerStatus: current.ai?.ollamaInsights ? 'ready' : 'fallback_ready',
-                    modeLabel: current.ai?.ollamaInsights ? current.ai.modeLabel : ai.modeLabel,
-                    llmModel: current.ai?.ollamaInsights ? current.ai.llmModel : ai.llmModel,
-                    llmProvider: current.ai?.ollamaInsights ? current.ai.llmProvider : ai.llmProvider,
-                    llmUsed: current.ai?.ollamaInsights ? current.ai.llmUsed : ai.llmUsed
+                    ...current.ai,
+                    aiLayerStatus: current.ai?.aiLayerStatus === 'fallback_ready' ? 'fallback_ready' : 'ollama_failed',
+                    modeLabel: 'Ollama 응답 지연, 규칙형 근거 유지'
                   }
-                };
-              });
-            } catch {
-              // The core chart remains usable without the secondary AI chat response.
+                }));
+              }
             }
-
-            attachAfterMarketReport();
           };
-          loadAiLayer();
+          attachAfterMarketReport();
+          loadFallbackAiLayer();
+          loadOllamaLayer();
         }
       } catch (err) {
         if (mounted && requestId === requestIdRef.current) {
