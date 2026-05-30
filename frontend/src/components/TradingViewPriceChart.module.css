@@ -13,6 +13,84 @@
   background-size: 80px 80px, 80px 80px, auto;
 }
 
+/* PC-first simplification: keep chart and one judgement panel only. */
+.brandBadge,
+.chartControlDock,
+.legend,
+.latestBar,
+.signalPanel,
+.forecastHud,
+.aiDecisionPanel,
+.mobileChartLens,
+.mobilePortfolioCta,
+.personalRiskOverlay,
+.newsDirectionPanel,
+.zoneRail,
+.tooltip,
+.sidebarHeader button,
+.sidebarNewsCard,
+.sidebarZoneList {
+  display: none !important;
+}
+
+.stage {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 350px);
+  gap: 18px;
+  padding-top: 96px;
+}
+
+.chartPane,
+.decisionSidebar {
+  border-radius: 8px;
+}
+
+.decisionSidebar {
+  overflow: hidden;
+  padding: 14px;
+}
+
+.sidebarHeader {
+  padding-bottom: 2px;
+}
+
+.sidebarDecisionCard p,
+.sidebarActionBox span {
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.sidebarMetricGrid {
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (min-width: 1280px) {
+  .stage {
+    grid-template-columns: minmax(0, 1fr) 360px;
+    padding-left: clamp(28px, 4vw, 64px);
+    padding-right: clamp(28px, 4vw, 64px);
+  }
+}
+
+@media (max-width: 768px) {
+  .stage {
+    position: absolute;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(360px, 1fr) auto;
+    gap: 10px;
+    padding: 66px 12px 12px;
+    overflow-y: auto;
+  }
+
+  .chartPane {
+    min-height: 360px;
+  }
+
+  .decisionSidebar {
+    overflow: visible;
+  }
+}
+
 .chartPane {
   position: relative;
   min-width: 0;
@@ -2394,5 +2472,55 @@
   .tooltip {
     width: min(304px, calc(100vw - 24px));
     bottom: auto;
+  }
+}
+
+/* Final guard: no floating windows or extra chart buttons on the main screen. */
+.brandBadge,
+.chartControlDock,
+.legend,
+.latestBar,
+.signalPanel,
+.forecastHud,
+.aiDecisionPanel,
+.mobileChartLens,
+.mobilePortfolioCta,
+.personalRiskOverlay,
+.newsDirectionPanel,
+.zoneRail,
+.tooltip,
+.sidebarHeader button,
+.sidebarNewsCard,
+.sidebarZoneList {
+  display: none !important;
+}
+
+.stage {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px) !important;
+  gap: 18px !important;
+  padding: 96px clamp(28px, 4vw, 64px) 24px !important;
+}
+
+.decisionSidebar {
+  overflow: hidden !important;
+  border-radius: 8px !important;
+}
+
+@media (max-width: 768px) {
+  .stage {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: minmax(360px, 1fr) auto !important;
+    gap: 10px !important;
+    padding: 66px 12px 12px !important;
+    overflow-y: auto !important;
+  }
+
+  .chartPane {
+    min-height: 360px !important;
+  }
+
+  .decisionSidebar {
+    max-height: none !important;
+    overflow: visible !important;
   }
 }

@@ -1811,3 +1811,36 @@
     display: none;
   }
 }
+
+/* PC-first simplification: one search action only in the toolbar. */
+.topToolbar {
+  justify-content: center !important;
+  gap: 0 !important;
+}
+
+.intervalGroup,
+.briefDateStrip,
+.actionGroup {
+  display: none !important;
+}
+
+.quickSearchForm {
+  flex: 0 1 520px !important;
+  width: min(520px, calc(100vw - 48px)) !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  border-radius: 8px !important;
+  background: rgba(6, 10, 18, 0.86) !important;
+}
+
+@media (max-width: 768px) {
+  .topToolbar {
+    top: 12px !important;
+    left: 12px !important;
+    right: 12px !important;
+  }
+
+  .quickSearchForm {
+    width: 100% !important;
+  }
+}

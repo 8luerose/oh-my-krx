@@ -61,6 +61,42 @@ function normalizeDecision(value) {
   return text;
 }
 
+function plainDecisionLabel(value) {
+  const text = normalizeDecision(value);
+  if (text.includes('매수')) return '살지 말지 검토';
+  if (text.includes('매도')) return '팔지 말지 검토';
+  if (text.includes('분석')) return '확인 중';
+  return '기다림';
+}
+
+function plainDecisionSummary(aiDecision, chartMetrics) {
+  const decision = aiDecision?.decision || '';
+  const topPrice = formatCurrency(chartMetrics?.resistance);
+  const avg20 = formatCurrency(chartMetrics?.ma20);
+  const support = formatCurrency(chartMetrics?.support);
+  if (decision.includes('매수')) {
+    return `지금 바로 사기보다 ${topPrice} 위에서 버티는지 먼저 보세요. ${avg20} 아래로 내려가면 기다리는 쪽이 낫습니다.`;
+  }
+  if (decision.includes('매도')) {
+    return `가격이 더 오르지 못하고 밀리면 팔지 검토하세요. ${support} 아래로 내려가면 위험을 먼저 줄여야 합니다.`;
+  }
+  if (decision.includes('분석')) {
+    return 'AI가 차트와 뉴스를 확인하고 있습니다. 지금은 가격과 사고판 양만 먼저 보세요.';
+  }
+  return `지금은 기다리면서 ${avg20} 위에 머무는지 확인하는 쪽입니다.`;
+}
+
+function plainNextCheck(aiDecision, chartMetrics) {
+  const decision = aiDecision?.decision || '';
+  const topPrice = formatCurrency(chartMetrics?.resistance);
+  const avg20 = formatCurrency(chartMetrics?.ma20);
+  const support = formatCurrency(chartMetrics?.support);
+  if (decision.includes('매수')) return `${topPrice} 위로 올라간 뒤에도 사고판 양이 줄지 않는지 확인`;
+  if (decision.includes('매도')) return `${support} 아래로 내려가거나 가격 회복이 약한지 확인`;
+  if (decision.includes('분석')) return 'AI 결과가 나오기 전까지 새로 사지 말고 기다리기';
+  return `${avg20} 위에서 장을 마치는지 확인`;
+}
+
 function firstCompact(items, fallback, limit = 76) {
   if (!Array.isArray(items)) return compactText(fallback, fallback, limit);
   const found = items.find((item) => String(item || '').trim());
@@ -266,12 +302,12 @@ export default function TradingViewPriceChart({
     setHover(null);
   }, [stock?.code, interval]);
 
-  const toggleLayer = (key) => {
-    setVisibleLayers((current) => ({ ...current, [key]: !current[key] }));
-  };
-
   const handleFitChart = () => {
     chartApiRef.current?.timeScale?.().fitContent?.();
+  };
+
+  const toggleLayer = (key) => {
+    setVisibleLayers((current) => ({ ...current, [key]: !current[key] }));
   };
 
   const prepared = useMemo(() => {
@@ -906,49 +942,9 @@ export default function TradingViewPriceChart({
       scaleMargins: { top: 0.78, bottom: 0 }
     });
 
-      const markerApi = createSeriesMarkers(
-      candleSeries,
-      visibleLayers.events ? events
-        .filter((event) => event?.date)
-        .slice(0, compactChart ? 5 : 12)
-        .map((event) => markerForEvent(event, compactChart)) : []
-    );
+      const markerApi = createSeriesMarkers(candleSeries, []);
 
       const priceLines = [];
-      const addPriceLine = (price, title, color, style = LineStyle.Dashed, options = {}) => {
-      const numericPrice = Number(price);
-      if (!Number.isFinite(numericPrice)) return;
-      priceLines.push(candleSeries.createPriceLine({
-        price: numericPrice,
-        color,
-        lineWidth: 1,
-        lineStyle: style,
-        axisLabelVisible: options.axisLabelVisible ?? !compactChart,
-        title: compactChart ? '' : title
-      }));
-    };
-
-      addPriceLine(indicatorSnapshot?.supportLevel, '지지선', '#22c55e');
-      addPriceLine(indicatorSnapshot?.resistanceLevel, '저항선', '#ef4444');
-      if (visibleLayers.zones) {
-        zoneSummaries.forEach((zone) => addPriceLine(
-          zone.midPrice,
-          zone.label || 'AI 구간',
-          zone.color,
-          LineStyle.Dotted,
-          { axisLabelVisible: false }
-        ));
-      }
-      if (visibleLayers.personal) {
-        personalPriceLines.forEach((line) => {
-          addPriceLine(line.price, line.label, line.color, line.key === 'average' ? LineStyle.Solid : LineStyle.Dashed);
-        });
-      }
-      if (visibleLayers.ai && forecastGuide) {
-        addPriceLine(forecastGuide.upTrigger, 'AI 상승 확인선', '#22c55e', LineStyle.Solid);
-        addPriceLine(forecastGuide.defenseBase, 'AI 방어 기준선', '#f97316', LineStyle.Dashed);
-        addPriceLine(forecastGuide.watchBase, 'AI 관망 기준선', '#60a5fa', LineStyle.Dotted);
-      }
 
       chart.subscribeCrosshairMove((param) => {
       if (!param?.time || !param.point) {
@@ -986,10 +982,10 @@ export default function TradingViewPriceChart({
       disposed = true;
       cleanupChart();
     };
-  }, [dataByTime, events, forecastGuide, indicatorSnapshot, personalPriceLines, prepared, visibleLayers.ai, visibleLayers.events, visibleLayers.personal, visibleLayers.zones, zoneSummaries]);
+  }, [dataByTime, events, prepared]);
 
   const latest = prepared.rows[prepared.rows.length - 1];
-  const visibleZoneSummaries = showDetailPanels ? zoneSummaries : zoneSummaries.slice(0, 3);
+  const visibleZoneSummaries = zoneSummaries.slice(0, 3);
   const simpleVisibleZoneSummaries = useMemo(() => {
     const picked = [];
     const addFirst = (types) => {
@@ -1031,7 +1027,7 @@ export default function TradingViewPriceChart({
           <section className={styles.sidebarPriceCard}>
             <span>{latest.time} 기준</span>
             <strong>{formatCurrency(latest.close)}</strong>
-            <em>거래량 {formatVolume(latest.volume)}</em>
+            <em>사고판 양 {formatVolume(latest.volume)}</em>
           </section>
         )}
 
@@ -1042,11 +1038,11 @@ export default function TradingViewPriceChart({
             aiDecision.tone === 'sell' && styles.sidebarDecisionSell
           )}>
             <span>AI 판단</span>
-            <strong>{aiDecision.decision}</strong>
-            <p>{aiDecision.summary}</p>
+            <strong>{plainDecisionLabel(aiDecision.decision)}</strong>
+            <p>{plainDecisionSummary(aiDecision, chartMetrics)}</p>
             <div className={styles.sidebarActionBox}>
               <b>지금 확인할 것</b>
-              <span>{aiDecision.timingNextAction || aiDecision.primaryCondition || aiDecision.nextWatch}</span>
+              <span>{plainNextCheck(aiDecision, chartMetrics)}</span>
             </div>
             {onRefreshAi && (
               <button
@@ -1065,21 +1061,21 @@ export default function TradingViewPriceChart({
         {chartMetrics && (
           <section className={styles.sidebarMetricGrid} aria-label="차트 핵심 지표">
             <article>
-              <span>오늘 흐름</span>
+              <span>오늘 가격</span>
               <strong className={Number(chartMetrics.changeRate) >= 0 ? styles.up : styles.down}>
                 {formatPercent(chartMetrics.changeRate)}
               </strong>
             </article>
             <article>
-              <span>20일 평균선</span>
+              <span>최근 20일 평균</span>
               <strong>{chartMetrics.aboveMa20 ? '위에 있음' : '아래에 있음'}</strong>
             </article>
             <article>
-              <span>저항선까지</span>
+              <span>위쪽 기준까지</span>
               <strong>{formatPercent(chartMetrics.resistanceDistance)}</strong>
             </article>
             <article>
-              <span>거래량</span>
+              <span>사고판 양</span>
               <strong>{Number.isFinite(chartMetrics.volumeRatio) ? `${Math.round(chartMetrics.volumeRatio)}%` : '확인 필요'}</strong>
             </article>
           </section>
