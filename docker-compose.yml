@@ -25,7 +25,7 @@ services:
     env_file:
       - .env
     environment:
-      TZ: Asia/Seoul
+      TZ: ${TZ:-Asia/Seoul}
     ports:
       - "${MARKETDATA_PORT:-8000}:8000"
     healthcheck:
@@ -57,7 +57,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      TZ: Asia/Seoul
+      TZ: ${TZ:-Asia/Seoul}
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
       QDRANT_ENABLED: ${QDRANT_ENABLED:-true}
       QDRANT_COLLECTION: ${QDRANT_COLLECTION:-kr_stock_ai_memory_ollama}
@@ -88,6 +88,7 @@ services:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-auto}
       OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-18}
+      OLLAMA_LEARNING_TIMEOUT_SECONDS: ${OLLAMA_LEARNING_TIMEOUT_SECONDS:-4}
       OLLAMA_JSON_TIMEOUT_SECONDS: ${OLLAMA_JSON_TIMEOUT_SECONDS:-6}
       OLLAMA_STATUS_TIMEOUT_SECONDS: ${OLLAMA_STATUS_TIMEOUT_SECONDS:-2.5}
       OLLAMA_NUM_PREDICT: ${OLLAMA_NUM_PREDICT:-420}
@@ -108,8 +109,8 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      DB_HOST: mysql
-      DB_PORT: 3306
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
       DB_NAME: ${DB_NAME:-kr_stock_daily_brief}
       DB_USER: ${DB_USER:-app}
       DB_PASSWORD: ${DB_PASSWORD:-app}

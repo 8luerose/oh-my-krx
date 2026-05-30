@@ -237,15 +237,19 @@ Copy `.env.example` to `.env` and adjust values for your environment.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
+| `DB_HOST` | No | Backend DB host. Docker default: `mysql` |
+| `DB_PORT` | No | Backend DB port. Docker default: `3306` |
 | `DB_NAME` | Yes | Database name |
 | `DB_USER` | Yes | Database user |
 | `DB_PASSWORD` | Yes | Database password |
 | `DB_ROOT_PASSWORD` | Yes | MySQL root password |
+| `MYSQL_PORT` | No | Host port mapped to MySQL. Default: `3306` |
 | `BACKEND_PORT` | Yes | Backend API port (default: 8080) |
 | `FRONTEND_PORT` | Yes | Frontend UI port (default: 5173) |
 | `MARKETDATA_PORT` | Yes | Market data service port (default: 8000) |
 | `AI_SERVICE_PORT` | No | AI service port (default: 8100) |
 | `QDRANT_PORT` | No | Qdrant port (default: 6333) |
+| `TZ` | No | Container timezone. Default: `Asia/Seoul` |
 | `API_BASE_URL` | Yes | Backend URL accessible from frontend |
 | `MARKETDATA_PROVIDER` | No | Provider: `pykrx` or `naver` (default: pykrx) |
 | `MARKETDATA_BASE_URL` | No | Market data service URL (Docker internal) |
@@ -285,6 +289,7 @@ Copy `.env.example` to `.env` and adjust values for your environment.
 | `OLLAMA_JSON_NUM_PREDICT` | No | Shorter Ollama JSON insight token budget. Docker default: `80` |
 | `AI_CLIENT_CONNECT_TIMEOUT_SECONDS` | No | Backend connection timeout to ai-service |
 | `AI_CLIENT_READ_TIMEOUT_SECONDS` | No | Backend read timeout to ai-service |
+| `JAVA_TOOL_OPTIONS` | No | Optional JVM options for backend container |
 | `PUBLIC_KEY` | No | Access gate key (leave empty to disable) |
 | `ADMIN_KEY` | Recommended | Admin key for protected operations |
 | `APP_ADMIN_TRUSTED_CIDRS` | No | Comma-separated CIDRs for trusted admin bypass |
