@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import clsx from 'clsx';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { loadLearningTerms, loadStockOptions } from '../services/apiClient';
 import ImmersiveChart from '../components/ImmersiveChart';
@@ -45,6 +46,15 @@ function buildPipelineToast({ data, activeCode, interval, loading }) {
   const ollamaStatus = data.ai?.ollamaInsightsStatus
     || (data.ai?.ollamaInsights ? 'ready' : aiStatus === 'ollama_failed' ? 'failed' : aiStatus === 'loading' ? 'loading' : 'waiting');
   const reportStatus = data.ai?.marketReportStatus || (data.ai?.marketReport ? 'ready' : '');
+  const insights = data.ai?.ollamaInsights;
+  const report = data.ai?.marketReport || insights?.afterMarketReport;
+  const modeLabel = insights?.mode === 'ollama_llm' || data.ai?.llmUsed ? 'Ollama LLM' : '규칙형 미리보기';
+  const storageLabel = insights?.runtimeCache?.label
+    || (insights?.storage?.saved ? '상담 DB 저장' : ollamaStatus === 'ready' ? '상담 저장 확인 필요' : '');
+  const reportLabel = data.ai?.marketReport?.runtimeCache?.label
+    || (data.ai?.marketReport?.storage?.cached ? '장후 DB 재사용'
+      : data.ai?.marketReport?.storage?.saved ? '장후 DB 저장'
+        : report ? '장후 결과 반영' : '');
   if (ollamaStatus === 'loading') {
     return {
       title: `${data.stock?.name || activeCode} Ollama 3대 기능 실행 중`,
@@ -78,6 +88,30 @@ function buildPipelineToast({ data, activeCode, interval, loading }) {
         { label: '상담', state: 'ready' },
         { label: '뉴스', state: 'ready' },
         { label: '장후', state: 'loading' }
+      ]
+    };
+  }
+  if (ollamaStatus === 'ready' && reportStatus === 'unavailable') {
+    return {
+      title: `${data.stock?.name || activeCode} 상담·뉴스 반영 완료`,
+      detail: `장후 리포트만 지연 중입니다. ${modeLabel}${storageLabel ? ` · ${storageLabel}` : ''}`,
+      tone: 'delayed',
+      steps: [
+        { label: '상담', state: 'ready' },
+        { label: '뉴스', state: 'ready' },
+        { label: '장후', state: 'delayed' }
+      ]
+    };
+  }
+  if (ollamaStatus === 'ready') {
+    return {
+      title: `${data.stock?.name || activeCode} Ollama 3대 기능 반영 완료`,
+      detail: `${modeLabel}${storageLabel ? ` · ${storageLabel}` : ''}${reportLabel ? ` · ${reportLabel}` : ''}`,
+      tone: 'ready',
+      steps: [
+        { label: '상담', state: 'ready' },
+        { label: '뉴스', state: 'ready' },
+        { label: '장후', state: report ? 'ready' : 'waiting' }
       ]
     };
   }
@@ -222,7 +256,12 @@ function App() {
       )}
 
       {pipelineToast && (
-        <div className={styles.pipelineToast} data-testid="pipeline-toast" role="status" aria-live="polite">
+        <div
+          className={clsx(styles.pipelineToast, styles[`pipelineToast_${pipelineToast.tone}`])}
+          data-testid="pipeline-toast"
+          role="status"
+          aria-live="polite"
+        >
           <Activity size={16} aria-hidden="true" />
           <div className={styles.pipelineToastBody}>
             <strong>{pipelineToast.title}</strong>

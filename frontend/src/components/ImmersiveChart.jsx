@@ -136,39 +136,55 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
     const marketReportStatus = ai?.marketReportStatus || (ai?.marketReport ? 'ready' : '');
     const isLoading = ollamaStatus === 'loading';
     const isDelayed = ollamaStatus === 'failed';
-    const adviceDecision = insights?.stockAdvice?.decision || (isLoading ? '분석 중' : '대기');
+    const hasAdvice = Boolean(insights?.stockAdvice?.decision || insights?.stockAdvice?.summary);
+    const hasNews = Boolean(insights?.newsSentiment?.summary || insights?.newsSentiment?.nextTradingDay);
+    const report = ai?.marketReport || insights?.afterMarketReport || null;
+    const isOllamaLlm = insights?.mode === 'ollama_llm' || ai?.llmUsed;
+    const adviceState = hasAdvice ? 'ready' : isLoading ? 'loading' : isDelayed ? 'delayed' : 'waiting';
+    const newsState = hasNews ? 'ready' : isLoading ? 'loading' : isDelayed ? 'delayed' : 'waiting';
+    const adviceDecision = insights?.stockAdvice?.decision || (isLoading ? '분석 중' : isDelayed ? '규칙형 유지' : '대기');
     const newsDirection = insights?.newsSentiment?.nextTradingDay;
     const newsText = insights
       ? `상승 ${newsDirection?.up ?? '확인 중'}% · 하락 ${newsDirection?.down ?? '확인 중'}%`
       : isLoading
         ? '뉴스와 이벤트 문맥 확인 중'
-        : '뉴스 방향 대기';
-    const reportText = ai?.marketReport
-      ? (ai.marketReport.storage?.cached ? 'DB 저장본 재사용' : '장후 리포트 준비 완료')
+        : isDelayed ? '규칙형 뉴스 근거 유지' : '뉴스 방향 대기';
+    const reportText = report
+      ? (ai?.marketReport?.storage?.cached ? 'DB 저장본 재사용' : '장후 리포트 준비 완료')
       : marketReportStatus === 'loading'
         ? '최신 저장 브리프 확인 중'
-        : '장후 리포트 대기';
-    const state = insights ? 'ready' : isLoading ? 'loading' : isDelayed ? 'delayed' : 'waiting';
-    const reportState = ai?.marketReport ? 'ready' : marketReportStatus === 'loading' ? 'loading' : 'waiting';
+        : marketReportStatus === 'unavailable' ? '장후 리포트 지연' : '장후 리포트 대기';
+    const reportState = report ? 'ready' : marketReportStatus === 'loading' ? 'loading' : marketReportStatus === 'unavailable' ? 'delayed' : 'waiting';
+    const llmLabel = isOllamaLlm ? 'Ollama LLM 응답' : isLoading ? 'Ollama 계산 중' : isDelayed ? '규칙형 보강' : 'Ollama 대기';
+    const storageLabel = insights?.runtimeCache?.label
+      || (insights?.storage?.saved ? '상담 DB 저장' : hasAdvice ? '상담 저장 확인 필요' : '저장 전');
+    const qdrantLabel = insights?.qdrant?.enabled ? `Qdrant ${insights.qdrant.retrievedCount || 0}개` : 'Qdrant 대기';
+    const reportStorageLabel = ai?.marketReport?.runtimeCache?.label
+      || (ai?.marketReport?.storage?.cached ? '장후 DB 재사용'
+        : ai?.marketReport?.storage?.saved ? '장후 DB 저장'
+          : report ? '장후 결과 반영' : '장후 저장 전');
 
     return [
       {
         label: '1. 이 종목 지금 사도 되나요?',
         value: adviceDecision,
         detail: '차트, 재무, 뉴스, 센티멘트를 합쳐 조건형 상담',
-        state
+        state: adviceState,
+        meta: [llmLabel, storageLabel]
       },
       {
         label: '2. 뉴스 감성 단기 방향',
         value: newsText,
         detail: '헤드라인 문맥을 읽고 다음 거래일 방향 확률 표시',
-        state
+        state: newsState,
+        meta: [llmLabel, qdrantLabel]
       },
       {
         label: '3. 장후 시장 요약 리포트',
         value: reportText,
         detail: '저장된 일간 브리프에 Ollama 코멘트 추가',
-        state: reportState
+        state: reportState,
+        meta: [reportStorageLabel, report?.modeLabel || report?.title || '최신 브리프 기준']
       }
     ];
   }, [ai]);
@@ -178,6 +194,7 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
     const hasLoading = aiExecutionSteps.some((step) => step.state === 'loading');
     const hasDelayed = aiExecutionSteps.some((step) => step.state === 'delayed');
     const insights = ai?.ollamaInsights;
+    const report = ai?.marketReport || insights?.afterMarketReport;
     const qdrant = insights?.qdrant || ai?.marketReport?.qdrant;
     const storage = insights?.storage || ai?.storage;
     const runtimeCache = insights?.runtimeCache;
@@ -204,6 +221,7 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
       reportStorageLabel: reportRuntimeCache?.label
         || (ai?.marketReport?.storage?.cached ? '장후 DB 재사용'
           : ai?.marketReport?.storage?.saved ? '장후 DB 저장'
+            : report ? '장후 결과 반영'
             : marketReportStatus === 'loading' ? '장후 확인 중'
               : marketReportStatus === 'unavailable' ? '장후 리포트 지연' : '장후 대기'),
       qdrantLabel: qdrant?.enabled ? `Qdrant ${qdrant.retrievedCount || 0}개` : 'Qdrant 대기',
@@ -638,6 +656,13 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
                           </strong>
                           <em>{step.value}</em>
                           <p>{step.detail}</p>
+                          {step.meta?.length > 0 && (
+                            <div className={styles.aiPipelineMeta} aria-label={`${step.label} 실행 근거`}>
+                              {step.meta.filter(Boolean).slice(0, 2).map((item) => (
+                                <span key={`${step.label}-${item}`}>{item}</span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}

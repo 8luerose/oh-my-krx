@@ -106,6 +106,24 @@
   color: #93c5fd;
 }
 
+.pipelineToast_ready {
+  border-color: rgba(34, 197, 94, 0.24);
+  background: rgba(6, 78, 59, 0.66);
+}
+
+.pipelineToast_ready > svg {
+  color: #86efac;
+}
+
+.pipelineToast_delayed {
+  border-color: rgba(245, 158, 11, 0.28);
+  background: rgba(69, 44, 8, 0.7);
+}
+
+.pipelineToast_delayed > svg {
+  color: #fde68a;
+}
+
 .pipelineToastBody {
   display: grid;
   gap: 2px;
