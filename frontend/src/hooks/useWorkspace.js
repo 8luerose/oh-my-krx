@@ -3,6 +3,7 @@ import {
   invalidateAfterMarketReportCache,
   invalidateAiCachesForStock,
   loadLatestOllamaAfterMarketReport,
+  loadLatestStockOllamaInsights,
   loadStockAi,
   loadStockCoreWorkspace,
   loadStockOllamaInsights,
@@ -75,6 +76,35 @@ export function useWorkspace(initialCode = '005930', initialInterval = 'daily') 
               };
             });
           }, 12000);
+          const attachStoredOllamaInsight = async () => {
+            try {
+              const storedOllamaInsights = await loadLatestStockOllamaInsights(workspaceData.stock?.code);
+              if (!storedOllamaInsights || !mounted || requestId !== requestIdRef.current) return;
+              setData((current) => {
+                if (!current || current.stock?.code !== workspaceData.stock?.code || current.chart?.interval !== workspaceData.chart?.interval) {
+                  return current;
+                }
+                if (current.ai?.ollamaInsights && current.ai?.ollamaInsightsStatus === 'ready') {
+                  return current;
+                }
+                return {
+                  ...current,
+                  ai: {
+                    ...current.ai,
+                    ollamaInsights: storedOllamaInsights,
+                    ollamaInsightsStatus: 'ready',
+                    aiLayerStatus: 'cached_ready',
+                    modeLabel: storedOllamaInsights.modeLabel,
+                    llmModel: storedOllamaInsights.model,
+                    llmProvider: 'ollama',
+                    llmUsed: storedOllamaInsights.mode === 'ollama_llm'
+                  }
+                };
+              });
+            } catch {
+              // Stored Ollama insights are an acceleration path; fresh calculation still runs below.
+            }
+          };
           let marketReportStarted = false;
           const attachAfterMarketReport = async () => {
             if (marketReportStarted) return;
@@ -159,17 +189,25 @@ export function useWorkspace(initialCode = '005930', initialInterval = 'daily') 
               if (mounted && requestId === requestIdRef.current) {
                 mergeAiForCurrentWorkspace((current) => ({
                   ...current,
-                  ai: {
-                    ...current.ai,
-                    ollamaInsightsStatus: 'failed',
-                    aiLayerStatus: current.ai?.aiLayerStatus === 'fallback_ready' ? 'fallback_ready' : 'ollama_failed',
-                    modeLabel: 'Ollama 응답 지연, 규칙형 근거 유지'
-                  }
+                  ai: current.ai?.ollamaInsights
+                    ? {
+                      ...current.ai,
+                      ollamaInsightsStatus: 'ready',
+                      aiLayerStatus: 'ready',
+                      modeLabel: current.ai.modeLabel || 'DB 저장본 유지'
+                    }
+                    : {
+                      ...current.ai,
+                      ollamaInsightsStatus: 'failed',
+                      aiLayerStatus: current.ai?.aiLayerStatus === 'fallback_ready' ? 'fallback_ready' : 'ollama_failed',
+                      modeLabel: 'Ollama 응답 지연, 규칙형 근거 유지'
+                    }
                 }));
               }
             }
           };
           attachAfterMarketReport();
+          attachStoredOllamaInsight();
           loadFallbackAiLayer();
           loadOllamaLayer();
         }

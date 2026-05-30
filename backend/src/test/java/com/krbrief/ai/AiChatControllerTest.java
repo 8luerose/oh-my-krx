@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -97,5 +98,27 @@ class AiChatControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].stockCode").value("005930"))
         .andExpect(jsonPath("$[0].model").value("glm-5-turbo"));
+  }
+
+  @Test
+  void latestOllamaInsights_returnsStoredStructuredResponse() throws Exception {
+    when(logService.latestOllamaInsight("005930"))
+        .thenReturn(
+            Optional.of(
+                Map.of(
+                    "mode", "ollama_llm",
+                    "stockAdvice", Map.of("decision", "관망"),
+                    "newsSentiment", Map.of("nextTradingDay", Map.of("up", 44, "down", 31)),
+                    "storage",
+                        Map.of(
+                            "saved", true,
+                            "cached", true,
+                            "table", "ai_chat_interactions"))));
+
+    mvc.perform(get("/api/ai/ollama/insights/latest?stockCode=005930"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.mode").value("ollama_llm"))
+        .andExpect(jsonPath("$.stockAdvice.decision").value("관망"))
+        .andExpect(jsonPath("$.storage.cached").value(true));
   }
 }

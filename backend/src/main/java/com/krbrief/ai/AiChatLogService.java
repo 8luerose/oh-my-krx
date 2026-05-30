@@ -1,10 +1,12 @@
 package com.krbrief.ai;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,7 +41,8 @@ public class AiChatLogService {
                   preview(answer),
                   answer,
                   json(response.get("sources")),
-                  json(response.get("limitations"))));
+                  json(response.get("limitations")),
+                  json(response)));
       return Map.of(
           "saved",
           true,
@@ -71,6 +74,44 @@ public class AiChatLogService {
     return repository.findTop20ByOrderByCreatedAtDesc().stream().map(AiChatInteractionDto::from).toList();
   }
 
+  @Transactional(readOnly = true)
+  public Optional<Map<String, Object>> latestOllamaInsight(String stockCode) {
+    String safeCode = text(stockCode);
+    if (!safeCode.matches("^\\d{6}$")) {
+      return Optional.empty();
+    }
+    return repository
+        .findFirstByStockCodeAndResponseModeInOrderByCreatedAtDesc(
+            safeCode, List.of("ollama_llm", "ollama_fallback_rule_based"))
+        .flatMap(this::storedOllamaResponse);
+  }
+
+  private Optional<Map<String, Object>> storedOllamaResponse(AiChatInteraction item) {
+    String responseJson = text(item.getResponseJson());
+    if (responseJson.isBlank()) {
+      return Optional.empty();
+    }
+    Map<String, Object> stored = readJson(responseJson);
+    if (stored.isEmpty()) {
+      return Optional.empty();
+    }
+    LinkedHashMap<String, Object> response = new LinkedHashMap<>(stored);
+    LinkedHashMap<String, Object> storage = new LinkedHashMap<>();
+    storage.put("saved", true);
+    storage.put("cached", true);
+    storage.put("id", item.getId());
+    storage.put("table", "ai_chat_interactions");
+    storage.put("stockCode", item.getStockCode());
+    storage.put("responseMode", item.getResponseMode());
+    storage.put("provider", item.getProvider());
+    storage.put("model", item.getModel());
+    storage.put("basisDate", item.getBasisDate());
+    storage.put("createdAt", item.getCreatedAt());
+    storage.put("note", "저장된 Ollama 상담 응답을 먼저 재사용했습니다. 새 계산 결과가 도착하면 화면이 갱신됩니다.");
+    response.put("storage", storage);
+    return Optional.of(response);
+  }
+
   @SuppressWarnings("unchecked")
   private Map<String, Object> map(Object value) {
     if (value instanceof Map<?, ?> raw) {
@@ -86,6 +127,14 @@ public class AiChatLogService {
       return objectMapper.writeValueAsString(value == null ? List.of() : value);
     } catch (JsonProcessingException e) {
       return "[]";
+    }
+  }
+
+  private Map<String, Object> readJson(String value) {
+    try {
+      return objectMapper.readValue(value, new TypeReference<Map<String, Object>>() {});
+    } catch (JsonProcessingException e) {
+      return Map.of();
     }
   }
 

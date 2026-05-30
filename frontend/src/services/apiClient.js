@@ -832,6 +832,22 @@ export async function loadStockOllamaInsights(workspace, interval) {
   }
 }
 
+export async function loadLatestStockOllamaInsights(stockCode) {
+  const safeCode = String(stockCode || "").trim();
+  if (!/^\d{6}$/.test(safeCode)) return null;
+  try {
+    const remote = await requestJson(`/api/ai/ollama/insights/latest?stockCode=${encodeURIComponent(safeCode)}`);
+    return withRuntimeCacheMeta(normalizeOllamaInsights(remote), {
+      hit: true,
+      source: "database",
+      label: "DB 저장본 먼저 표시",
+      note: "이전에 저장된 Ollama 상담·뉴스·장후 종합 결과를 먼저 보여주고, 새 계산이 끝나면 갱신합니다."
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function loadLatestOllamaAfterMarketReport() {
   const key = "latest:ollama:after-market-report";
   const cached = getCachedPromise(afterMarketReportCache, key);

@@ -52,6 +52,9 @@ public class AiChatInteraction {
   @Column(name = "limitations_json", columnDefinition = "TEXT")
   private String limitationsJson;
 
+  @Column(name = "response_json", columnDefinition = "MEDIUMTEXT")
+  private String responseJson;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 
@@ -69,7 +72,8 @@ public class AiChatInteraction {
       String answerPreview,
       String answerText,
       String sourcesJson,
-      String limitationsJson) {
+      String limitationsJson,
+      String responseJson) {
     this.stockCode = stockCode;
     this.stockName = stockName;
     this.question = question;
@@ -82,6 +86,7 @@ public class AiChatInteraction {
     this.answerText = answerText;
     this.sourcesJson = sourcesJson;
     this.limitationsJson = limitationsJson;
+    this.responseJson = responseJson;
   }
 
   @PrePersist
@@ -127,6 +132,10 @@ public class AiChatInteraction {
 
   public String getAnswerPreview() {
     return answerPreview;
+  }
+
+  public String getResponseJson() {
+    return responseJson;
   }
 
   public Instant getCreatedAt() {

@@ -46,6 +46,14 @@ public class AiChatController {
     return response;
   }
 
+  @GetMapping("/ollama/insights/latest")
+  public ResponseEntity<Map<String, Object>> latestOllamaInsights(
+      @RequestParam(value = "stockCode", required = false) String stockCode) {
+    return logService.latestOllamaInsight(stockCode)
+        .map(ResponseEntity::ok)
+        .orElseGet(() -> ResponseEntity.notFound().build());
+  }
+
   @GetMapping("/ollama/after-market-report/latest")
   public ResponseEntity<Map<String, Object>> latestOllamaAfterMarketReport() {
     return afterMarketReportService.latestSavedOrGenerate()
