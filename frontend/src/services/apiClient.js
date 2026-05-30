@@ -1060,7 +1060,11 @@ export async function askAiForTerm(termName, stockCode = "") {
     const response = await requestJson("/api/ai/chat", {
       method: "POST",
       body: JSON.stringify({
-        message: `주식 용어 중 '${termName}'이 초보자 눈높이에서 무엇을 의미하는지, 그리고 실전 투자에서 어떻게 해석하고 활용해야 하는지 아주 이해하기 쉽게 3문장 이내로 쉬운 단어로 설명해줘.`,
+        message: `주식 용어 중 '${termName}'이 초보자 눈높이에서 무엇을 의미하는지 다음 형식 규칙을 반드시 철저히 지켜서 설명해줘:
+1. 불필요한 인사말, 서론, 결론은 일절 제외하고 정확히 '총 4줄'로만 답해야 해.
+2. 1번째~3번째 줄: 핵심 뜻과 투자 판단 기준을 짤막한 개조식 문장(각 문장은 - 로 시작)으로 정확히 2~3줄 요약해줘.
+3. 4번째 줄: 실전 투자 상황을 가정한 구체적 예시 문장을 정확히 1줄 추가해줘.
+4. 모든 응답 텍스트는 정확히 총 4줄로 정돈해줘.`,
         stockCode
       })
     });

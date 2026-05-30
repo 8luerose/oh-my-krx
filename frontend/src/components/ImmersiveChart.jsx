@@ -914,11 +914,22 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
                   { name: '5일선', desc: '1주평균' },
                   { name: '20일선', desc: '1달평균' },
                   { name: '60일선', desc: '3달평균' },
-                  { name: '지지선', desc: '하락방어' },
-                  { name: '저항선', desc: '돌파목표' },
-                  { name: '골든크로스', desc: '상승전환' },
                   { name: '거래량', desc: '매매수량' },
-                  { name: '캔들차트', desc: '하루변동' }
+                  { name: '거래대금', desc: '자금흐름' },
+                  { name: '골든크로스', desc: '상승전환' },
+                  { name: '공시', desc: '기업정보' },
+                  { name: '데드크로스', desc: '하락전환' },
+                  { name: '등락률', desc: '대비비율' },
+                  { name: '매도세', desc: '팔려는힘' },
+                  { name: '매수세', desc: '사려는힘' },
+                  { name: '물타기', desc: '평단낮추기' },
+                  { name: '변동성', desc: '흔들림폭' },
+                  { name: '손절매', desc: '손실차단' },
+                  { name: '시가총액', desc: '기업가치' },
+                  { name: '저항선', desc: '돌파목표' },
+                  { name: '지지선', desc: '하락방어' },
+                  { name: '캔들차트', desc: '하루변동' },
+                  { name: '테마주', desc: '기대감주' }
                 ].map((term) => (
                   <button
                     type="button"
@@ -931,24 +942,97 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
                   </button>
                 ))}
               </div>
-
-              <div className={styles.learningResultBox}>
-                {loadingTerm ? (
-                  <div className={styles.learningSpinnerBox}>
-                    <div className={styles.spinner} />
-                    <span>로컬 AI 비서가 '{selectedTerm}'의 뜻을 분석하여 불러오는 중...</span>
-                  </div>
-                ) : learningExplanation ? (
-                  <div className={styles.learningSuccessBox}>
-                    <h4>💡 AI 설명: {selectedTerm}</h4>
-                    <p className={styles.learningExplanationText}>{learningExplanation}</p>
-                  </div>
-                ) : (
-                  <p className={styles.learningPlaceholder}>
-                    위의 용어 버튼 중 하나를 클릭하면 로컬 AI 비서의 실시간 맞춤 강의가 시작됩니다.
-                  </p>
-                )}
+              
+              <div className={styles.learningFooterNotice}>
+                ※ 각 용어를 클릭하면 로컬 AI 비서가 즉석 뜻풀이를 제공합니다.
               </div>
+            </div>
+          </section>
+        </div>
+      ), document.body)}
+
+      {/* 2차 AI 뜻풀이 모달창 포탈 */}
+      {explanationModalOpen && typeof document !== 'undefined' && createPortal((
+        <div className={clsx(styles.briefModalLayer, styles.explanationModalLayer)} role="presentation" onClick={() => {
+          setExplanationModalOpen(false);
+          setLearningExplanation('');
+          setSelectedTerm('');
+        }}>
+          <section
+            className={clsx(styles.briefModal, styles.learningExplanationModal)}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${selectedTerm} AI 설명`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={styles.briefModalHeader}>
+              <div>
+                <span>Ollama AI 학습 도우미</span>
+                <strong>{selectedTerm} 뜻풀이</strong>
+              </div>
+              <button type="button" onClick={() => {
+                setExplanationModalOpen(false);
+                setLearningExplanation('');
+                setSelectedTerm('');
+              }} aria-label="설명 닫기">닫기</button>
+            </div>
+            <div className={styles.briefTextBlock} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '160px' }}>
+              {loadingTerm ? (
+                <div className={styles.learningSpinnerBox}>
+                  <div className={styles.spinner} />
+                  <span>로컬 AI 비서가 '{selectedTerm}'의 뜻을 분석하여 불러오는 중...</span>
+                </div>
+              ) : learningExplanation ? (
+                <div className={styles.learningSuccessBox}>
+                  {(() => {
+                    const lines = learningExplanation
+                      .split('\n')
+                      .map(l => l.replace(/^[-*\s\d.]+\s*/, '').trim())
+                      .filter(Boolean);
+                    
+                    const definitionLines = lines.slice(0, Math.min(3, lines.length - 1));
+                    const exampleLine = lines.length > 1 ? lines[lines.length - 1] : '';
+
+                    if (lines.length <= 1) {
+                      return (
+                        <p className={styles.learningExplanationText} style={{ margin: 0 }}>{learningExplanation}</p>
+                      );
+                    }
+
+                    return (
+                      <>
+                        <div style={{ display: 'grid', gap: '8px', marginBottom: '16px' }}>
+                          {definitionLines.map((line, idx) => (
+                            <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                              <span style={{ color: '#3182f6', fontWeight: 'bold' }}>•</span>
+                              <p className={styles.learningExplanationText} style={{ margin: 0 }}>{line}</p>
+                            </div>
+                          ))}
+                        </div>
+                        {exampleLine && (
+                          <div style={{
+                            background: 'rgba(49, 130, 246, 0.06)',
+                            borderLeft: '3px solid #3182f6',
+                            padding: '12px 16px',
+                            borderRadius: '0 8px 8px 0',
+                            marginTop: '8px'
+                          }}>
+                            <span style={{ fontSize: '0.74rem', color: '#3182f6', fontWeight: '800', display: 'block', marginBottom: '4px' }}>실전 활용 예시</span>
+                            <p className={styles.learningExplanationText} style={{ margin: 0, fontStyle: 'italic', color: 'var(--color-text-secondary)' }}>
+                              "{exampleLine}"
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <p className={styles.learningPlaceholder}>AI 설명을 가져오지 못했습니다.</p>
+              )}
+            </div>
+            <div className={styles.briefModalNote}>
+              이 설명은 사용자 PC의 로컬 Ollama AI 모델을 사용하여 4줄 요약 원칙 하에 생성된 맞춤형 학습 콘텐츠입니다.
             </div>
           </section>
         </div>
