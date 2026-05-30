@@ -2318,7 +2318,7 @@ def _fallback_ollama_insights(
     if personal_adjustment.get("applied"):
         advice_summary = f"{personal_adjustment['summary']} {advice_summary}"
 
-    return {
+    response = {
         "mode": "ollama_fallback_rule_based",
         "provider": "ollama",
         "model": _clean(llm_meta.get("model"), ""),
@@ -2419,6 +2419,8 @@ def _fallback_ollama_insights(
         },
         "confidence": "medium" if documents else "low",
     }
+    response["crossFeatureConsensus"] = _cross_feature_consensus(response)
+    return response
 
 
 PLACEHOLDER_TEXTS = (
@@ -2604,6 +2606,95 @@ def _compose_ollama_answer(subject: str, code: str, response: dict[str, Any]) ->
         f"{summary} 뉴스/이벤트 점수는 {score}점이고 다음 거래일 참고 확률은 상승 {up}%, 하락 {down}%입니다. "
         f"장후 분위기는 {mood}이며, 투자 지시가 아니라 조건 확인용 분석입니다."
     )
+
+
+def _tone_from_decision(decision: Any) -> str:
+    text = _clean(decision, "")
+    if "매수" in text:
+        return "positive"
+    if "매도" in text:
+        return "negative"
+    return "neutral"
+
+
+def _tone_from_probability(up: Any, down: Any) -> str:
+    up_number = _number(up, None)
+    down_number = _number(down, None)
+    if up_number is None or down_number is None:
+        return "neutral"
+    if up_number >= down_number + 8:
+        return "positive"
+    if down_number >= up_number + 8:
+        return "negative"
+    return "neutral"
+
+
+def _tone_from_market_report(report: dict[str, Any]) -> str:
+    text = f"{_clean(report.get('mood'), '')} {_clean(report.get('marketBias'), '')} {_clean(report.get('llmComment'), '')}"
+    if any(word in text for word in ["위험", "방어", "하락", "주의", "악화"]):
+        return "negative"
+    if any(word in text for word in ["관심", "상승", "확대", "우호", "긍정"]):
+        return "positive"
+    return "neutral"
+
+
+def _cross_feature_consensus(response: dict[str, Any]) -> dict[str, Any]:
+    advice = response.get("stockAdvice") if isinstance(response.get("stockAdvice"), dict) else {}
+    sentiment = response.get("newsSentiment") if isinstance(response.get("newsSentiment"), dict) else {}
+    report = response.get("afterMarketReport") if isinstance(response.get("afterMarketReport"), dict) else {}
+    probabilities = sentiment.get("nextTradingDay") if isinstance(sentiment.get("nextTradingDay"), dict) else {}
+
+    decision = _clean(advice.get("decision"), "관망")
+    up = _number(probabilities.get("up"), None)
+    down = _number(probabilities.get("down"), None)
+    mood = _clean(report.get("mood"), "장후 확인 필요")
+    advice_tone = _tone_from_decision(decision)
+    news_tone = _tone_from_probability(up, down)
+    report_tone = _tone_from_market_report(report)
+    tones = [tone for tone in [advice_tone, news_tone, report_tone] if tone != "neutral"]
+    has_positive = "positive" in tones
+    has_negative = "negative" in tones
+    if has_positive and has_negative:
+        agreement = "엇갈림"
+        tone = "mixed"
+        headline = "상담·뉴스·장후 흐름이 서로 엇갈립니다."
+        summary = "한쪽 신호만 믿지 말고 다음 종가, 거래량, 뉴스 원문을 다시 확인해야 합니다."
+        next_action = "새 매수나 전량 매도보다 20일선 유지와 거래량 방향을 먼저 확인합니다."
+    elif has_positive:
+        agreement = "상승 쪽 일치"
+        tone = "positive"
+        headline = "세 기능이 대체로 긍정 쪽으로 기웁니다."
+        summary = "그래도 추격 매수보다 거래량 유지와 저항선 돌파 확인이 먼저입니다."
+        next_action = "다음 종가가 20일선 위에서 유지되고 거래량이 늘어나는지 봅니다."
+    elif has_negative:
+        agreement = "주의 쪽 일치"
+        tone = "negative"
+        headline = "세 기능이 대체로 방어 쪽으로 기웁니다."
+        summary = "손실 확대를 막는 기준과 지지선 이탈 여부를 먼저 정해야 합니다."
+        next_action = "지지선 이탈, 하락 거래량 증가, 악재 뉴스 확산 여부를 확인합니다."
+    else:
+        agreement = "중립"
+        tone = "neutral"
+        headline = "세 기능 모두 뚜렷한 한 방향을 말하지 않습니다."
+        summary = "확률과 조건이 애매하면 관망이 기본입니다."
+        next_action = "다음 거래일 종가와 거래량이 같은 방향으로 움직이는지 확인합니다."
+
+    up_text = f"{int(round(up))}%" if up is not None else "확인"
+    down_text = f"{int(round(down))}%" if down is not None else "확인"
+    return {
+        "title": "상담·뉴스·장후 종합 확인",
+        "agreement": agreement,
+        "tone": tone,
+        "headline": headline,
+        "summary": summary,
+        "nextAction": next_action,
+        "caution": "이 종합 판단도 투자 지시가 아니라 조건 확인용입니다.",
+        "signals": [
+            {"label": "상담", "state": decision, "tone": advice_tone},
+            {"label": "뉴스", "state": f"상승 {up_text} · 하락 {down_text}", "tone": news_tone},
+            {"label": "장후", "state": mood, "tone": report_tone},
+        ],
+    }
 
 
 def _build_ollama_insights_prompt(
@@ -3041,6 +3132,7 @@ def ollama_insights(req: ChatRequest):
     response = _merge_insight_dict(fallback, generated)
     used_llm = bool(llm_answer)
     response = _apply_ollama_context_fields(response, used_llm)
+    response["crossFeatureConsensus"] = _cross_feature_consensus(response)
     if used_llm and not generated:
         raw_answer = _compact(llm_answer, 900)
         if raw_answer.lstrip().startswith("{"):

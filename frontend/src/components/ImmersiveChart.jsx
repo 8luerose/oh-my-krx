@@ -372,6 +372,38 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
     };
   }, [ai, stock?.name]);
 
+  const stockPanelConsensus = useMemo(() => {
+    const consensus = ai?.ollamaInsights?.crossFeatureConsensus || null;
+    const status = ai?.ollamaInsightsStatus
+      || (ai?.ollamaInsights ? 'ready' : ai?.aiLayerStatus === 'ollama_failed' ? 'failed' : ai?.aiLayerStatus === 'loading' ? 'loading' : 'waiting');
+    if (consensus) {
+      return {
+        ...consensus,
+        headline: compactPanelText(consensus.headline, '상담·뉴스·장후 흐름을 함께 확인합니다.', 92),
+        summary: compactPanelText(consensus.summary, '세 기능의 방향이 같은지 확인합니다.', 108),
+        nextAction: compactPanelText(consensus.nextAction, '다음 종가와 거래량을 확인합니다.', 104),
+        signals: Array.isArray(consensus.signals) ? consensus.signals.slice(0, 3) : []
+      };
+    }
+    if (status === 'loading') {
+      return {
+        title: '상담·뉴스·장후 종합 확인',
+        agreement: '계산 중',
+        tone: 'neutral',
+        headline: 'Ollama가 세 기능의 방향을 맞춰 보는 중입니다.',
+        summary: '상담 의견, 뉴스 확률, 장후 리포트가 붙으면 서로 일치하는지 표시합니다.',
+        nextAction: '결과가 붙기 전에는 20일선과 거래량을 먼저 확인합니다.',
+        caution: '계산 중에는 단일 뉴스 제목만 보고 판단하지 않습니다.',
+        signals: [
+          { label: '상담', state: '계산 중', tone: 'neutral' },
+          { label: '뉴스', state: '계산 중', tone: 'neutral' },
+          { label: '장후', state: ai?.marketReport ? '장후 반영' : '확인 중', tone: 'neutral' }
+        ]
+      };
+    }
+    return null;
+  }, [ai]);
+
   if (!chartData || chartData.length === 0) return null;
 
   const latestPoint = chartData[chartData.length - 1];
@@ -611,6 +643,42 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
                     </div>
                     <em>{stockPanelMarketReport.action}</em>
                   </div>
+                  {stockPanelConsensus && (
+                    <div
+                      className={clsx(
+                        styles.stockConsensusSnapshot,
+                        stockPanelConsensus.tone === 'positive' && styles.stockConsensusPositive,
+                        stockPanelConsensus.tone === 'negative' && styles.stockConsensusNegative,
+                        stockPanelConsensus.tone === 'mixed' && styles.stockConsensusMixed
+                      )}
+                      aria-label="상담 뉴스 장후 종합 판단"
+                    >
+                      <div className={styles.stockConsensusTopline}>
+                        <span>{stockPanelConsensus.title}</span>
+                        <strong>{stockPanelConsensus.agreement}</strong>
+                      </div>
+                      <b>{stockPanelConsensus.headline}</b>
+                      <p>{stockPanelConsensus.summary}</p>
+                      <div className={styles.stockConsensusSignalGrid}>
+                        {stockPanelConsensus.signals.map((signal) => (
+                          <span
+                            key={`${signal.label}-${signal.state}`}
+                            className={clsx(
+                              signal.tone === 'positive' && styles.stockConsensusSignalPositive,
+                              signal.tone === 'negative' && styles.stockConsensusSignalNegative
+                            )}
+                          >
+                            <em>{signal.label}</em>
+                            <strong>{signal.state}</strong>
+                          </span>
+                        ))}
+                      </div>
+                      <article>
+                        <b>다음 행동</b>
+                        <span>{stockPanelConsensus.nextAction}</span>
+                      </article>
+                    </div>
+                  )}
                   <div className={styles.aiPipelinePanel} aria-label="종목 선택 후 Ollama 실행 흐름">
                     <b>종목을 고르면 AI가 바로 확인하는 3가지</b>
                     <div className={styles.aiPipelineSummary} aria-label="Ollama 실행 상태 요약">

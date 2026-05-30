@@ -305,6 +305,153 @@
   white-space: normal;
 }
 
+.consensusPanel {
+  display: grid;
+  gap: var(--spacing-2);
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  border-radius: var(--radius-md);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.74), rgba(37, 99, 235, 0.14));
+  padding: var(--spacing-3);
+}
+
+.consensusPositive {
+  border-color: rgba(34, 197, 94, 0.25);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.74), rgba(21, 128, 61, 0.15));
+}
+
+.consensusNegative {
+  border-color: rgba(239, 68, 68, 0.28);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.74), rgba(127, 29, 29, 0.15));
+}
+
+.consensusMixed {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.74), rgba(120, 53, 15, 0.17));
+}
+
+.consensusHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+
+.consensusHeader span,
+.consensusHeader strong,
+.consensusPanel > b,
+.consensusPanel p,
+.consensusSignals span,
+.consensusPanel article b,
+.consensusPanel article span {
+  min-width: 0;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.consensusHeader span {
+  color: #bfdbfe;
+  font-size: 0.74rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.consensusHeader strong {
+  flex: 0 0 auto;
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.14);
+  color: #dbeafe;
+  font-size: 0.7rem;
+  font-weight: 950;
+  line-height: 1.2;
+  padding: 5px 8px;
+}
+
+.consensusPositive .consensusHeader strong {
+  border-color: rgba(34, 197, 94, 0.24);
+  color: #bbf7d0;
+}
+
+.consensusNegative .consensusHeader strong {
+  border-color: rgba(239, 68, 68, 0.28);
+  color: #fecaca;
+}
+
+.consensusMixed .consensusHeader strong {
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fde68a;
+}
+
+.consensusPanel > b {
+  color: var(--color-text-primary);
+  font-size: 0.84rem;
+  font-weight: 950;
+  line-height: 1.34;
+}
+
+.consensusPanel p,
+.consensusPanel article span {
+  color: var(--color-text-secondary);
+  font-size: 0.74rem;
+  line-height: 1.38;
+  margin: 0;
+}
+
+.consensusSignals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.consensusSignals span {
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.36);
+  padding: 7px;
+}
+
+.consensusSignals em {
+  color: var(--color-text-tertiary);
+  font-size: 0.64rem;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.consensusSignals strong {
+  color: var(--color-text-primary);
+  font-size: 0.72rem;
+  font-weight: 920;
+  line-height: 1.25;
+}
+
+.consensusSignalPositive {
+  border-color: rgba(34, 197, 94, 0.2) !important;
+}
+
+.consensusSignalNegative {
+  border-color: rgba(239, 68, 68, 0.22) !important;
+}
+
+.consensusPanel article {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(96, 165, 250, 0.14);
+  border-radius: var(--radius-sm);
+  background: rgba(37, 99, 235, 0.1);
+  padding: 8px;
+}
+
+.consensusPanel article b {
+  color: #dbeafe;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
 .sectionTitle {
   font-size: 0.85rem;
   color: var(--color-text-tertiary);
@@ -1411,6 +1558,7 @@
 
   .conditionGrid { grid-template-columns: 1fr; }
   .ollamaWorkflowGrid { grid-template-columns: 1fr; }
+  .consensusSignals { grid-template-columns: 1fr; }
   .decisionFactorPanel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sentimentReasonGrid { grid-template-columns: 1fr; }
   .tradeTimingGrid { grid-template-columns: 1fr; }

@@ -110,6 +110,7 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
   const nextTradingDay = newsSentiment?.nextTradingDay || {};
   const afterMarketReport = insights?.afterMarketReport || {};
   const beginnerCoach = insights?.beginnerCoach || null;
+  const consensus = insights?.crossFeatureConsensus || null;
   const decisionFactors = Array.isArray(insights?.decisionFactors) ? insights.decisionFactors.slice(0, 5) : [];
   const qdrant = insights?.qdrant || ai.marketReport?.qdrant || null;
   const qdrantModeLabel = qdrant?.embeddingUsed
@@ -152,6 +153,7 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
     insightRuntimeLabel,
     `2 뉴스 ${compactProbabilityPair(nextTradingDay)}`,
     `3 장후 ${ai.marketReport?.mood || afterMarketReport.mood || '확인 중'}`,
+    consensus?.agreement ? `종합 ${consensus.agreement}` : '',
     reportRuntimeLabelText,
     compactStorageChip(insights?.storage || ai.storage),
     compactStorageChip(ai.marketReport?.storage),
@@ -282,6 +284,45 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
               </div>
             </article>
           </div>
+
+          {consensus && (
+            <div
+              className={clsx(
+                styles.consensusPanel,
+                consensus.tone === 'positive' && styles.consensusPositive,
+                consensus.tone === 'negative' && styles.consensusNegative,
+                consensus.tone === 'mixed' && styles.consensusMixed
+              )}
+              aria-label="상담 뉴스 장후 종합 판단"
+            >
+              <div className={styles.consensusHeader}>
+                <span>{consensus.title || '상담·뉴스·장후 종합 확인'}</span>
+                <strong>{consensus.agreement || '확인 필요'}</strong>
+              </div>
+              <b>{consensus.headline || '세 기능의 방향을 함께 확인합니다.'}</b>
+              <p>{consensus.summary || '상담, 뉴스 확률, 장후 리포트를 함께 비교합니다.'}</p>
+              {consensus.signals?.length > 0 && (
+                <div className={styles.consensusSignals}>
+                  {consensus.signals.slice(0, 3).map((signal) => (
+                    <span
+                      key={`${signal.label}-${signal.state}`}
+                      className={clsx(
+                        signal.tone === 'positive' && styles.consensusSignalPositive,
+                        signal.tone === 'negative' && styles.consensusSignalNegative
+                      )}
+                    >
+                      <em>{signal.label}</em>
+                      <strong>{signal.state}</strong>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <article>
+                <b>다음 행동</b>
+                <span>{consensus.nextAction || '다음 종가와 거래량을 확인합니다.'}</span>
+              </article>
+            </div>
+          )}
 
           {insights && (
             <div className={styles.section}>

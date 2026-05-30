@@ -493,6 +493,26 @@ function normalizeTradeTiming(value = {}) {
   };
 }
 
+function normalizeCrossFeatureConsensus(value = {}) {
+  const consensus = value && typeof value === "object" ? value : {};
+  const safeTone = ["positive", "negative", "neutral", "mixed"].includes(consensus.tone) ? consensus.tone : "neutral";
+  const signals = Array.isArray(consensus.signals) ? consensus.signals : [];
+  return {
+    title: humanizeText(consensus.title || "상담·뉴스·장후 종합 확인"),
+    agreement: humanizeText(consensus.agreement || "확인 필요"),
+    tone: safeTone,
+    headline: humanizeText(consensus.headline || "세 기능의 방향을 함께 확인합니다."),
+    summary: humanizeText(consensus.summary || "상담, 뉴스 확률, 장후 리포트를 따로 보지 않고 함께 비교합니다."),
+    nextAction: humanizeText(consensus.nextAction || "다음 종가와 거래량을 확인합니다."),
+    caution: humanizeText(consensus.caution || "조건 확인용 참고입니다."),
+    signals: signals.slice(0, 3).map((item) => ({
+      label: humanizeText(item?.label || "근거"),
+      state: humanizeText(item?.state || "확인 필요"),
+      tone: ["positive", "negative", "neutral"].includes(item?.tone) ? item.tone : "neutral"
+    })).filter((item) => item.label)
+  };
+}
+
 function normalizeOllamaInsights(remote = {}) {
   const advice = remote.stockAdvice || {};
   const sentiment = remote.newsSentiment || {};
@@ -549,6 +569,7 @@ function normalizeOllamaInsights(remote = {}) {
       llmComment: humanizeText(report.llmComment || "장후 브리프에 로컬 LLM 코멘트를 붙일 수 있습니다."),
       nextWatch: normalizeTextList(report.nextWatch)
     },
+    crossFeatureConsensus: normalizeCrossFeatureConsensus(remote.crossFeatureConsensus),
     decisionFactors: normalizeDecisionFactors(remote.decisionFactors),
     beginnerCoach: normalizeBeginnerCoach(remote.beginnerCoach),
     qdrant: remote.retrieval?.qdrant || null,
