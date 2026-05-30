@@ -131,6 +131,7 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
   const reportRuntimeNoteText = reportRuntimeNote(marketReportStatus, Boolean(ai.marketReport), reportRuntime, reportStorageNote);
   const personalRisk = stockAdvice.personalRisk || ai.portfolioGuidance?.positionDiagnostics || null;
   const personalAdjustment = stockAdvice.personalAdjustment || null;
+  const tradeTiming = stockAdvice.tradeTiming || null;
   const visibleHeadlineCount = newsSentiment?.headlineSignals?.length || 0;
   const adviceDecision = stockAdvice.decision || '관망';
   const adviceSummary = stockAdvice.summary || '차트, 재무, 뉴스, 센티멘트를 합쳐 매수·관망·매도 조건을 정리합니다.';
@@ -165,6 +166,12 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
     || beginnerCoach?.cautionReason
     || beginnerCoach?.nextAction
     || beginnerCoach?.avoidAction
+  );
+  const hasTradeTiming = Boolean(
+    tradeTiming?.entryTiming
+    || tradeTiming?.exitTiming
+    || tradeTiming?.waitCondition
+    || tradeTiming?.invalidationTrigger
   );
 
   return (
@@ -360,6 +367,43 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
                           {personalRisk.stopLossPriceText && <span>기준 {personalRisk.stopLossPriceText}</span>}
                         </div>
                         {(personalAdjustment?.actionLine || personalRisk.actionLine) && <em>{personalAdjustment?.actionLine || personalRisk.actionLine}</em>}
+                      </div>
+                    )}
+                    {hasTradeTiming && (
+                      <div
+                        className={clsx(
+                          styles.tradeTimingPanel,
+                          tradeTiming.tone === 'positive' && styles.tradeTimingPositive,
+                          tradeTiming.tone === 'negative' && styles.tradeTimingNegative
+                        )}
+                        aria-label="AI 매매 타이밍 계획"
+                      >
+                        <strong>{tradeTiming.title || '언제 사고 언제 팔아야 하나요?'}</strong>
+                        <div className={styles.tradeTimingGrid}>
+                          <article>
+                            <b>살 때</b>
+                            <span>{tradeTiming.entryTiming || stockAdvice.buyConditions?.[0] || '20일선과 거래량 확인 필요'}</span>
+                          </article>
+                          <article>
+                            <b>팔 때</b>
+                            <span>{tradeTiming.exitTiming || stockAdvice.sellConditions?.[0] || '지지선 이탈 여부 확인 필요'}</span>
+                          </article>
+                          <article>
+                            <b>기다릴 때</b>
+                            <span>{tradeTiming.waitCondition || stockAdvice.watchConditions?.[0] || '다음 종가와 거래량 확인 필요'}</span>
+                          </article>
+                          <article>
+                            <b>판단 바꿀 때</b>
+                            <span>{tradeTiming.invalidationTrigger || '반대 신호가 거래량으로 확인될 때 다시 봅니다.'}</span>
+                          </article>
+                        </div>
+                        {tradeTiming.tomorrowChecklist?.length > 0 && (
+                          <ul>
+                            {tradeTiming.tomorrowChecklist.slice(0, 3).map((item, index) => (
+                              <li key={`${item}-${index}`}>{item}</li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
                     )}
                   </div>

@@ -480,6 +480,19 @@ function normalizeBeginnerCoach(value = {}) {
   };
 }
 
+function normalizeTradeTiming(value = {}) {
+  const timing = value && typeof value === "object" ? value : {};
+  return {
+    title: humanizeText(timing.title || "언제 사고 언제 팔아야 하나요?"),
+    tone: ["positive", "negative", "neutral"].includes(timing.tone) ? timing.tone : "neutral",
+    entryTiming: humanizeText(timing.entryTiming || ""),
+    exitTiming: humanizeText(timing.exitTiming || ""),
+    waitCondition: humanizeText(timing.waitCondition || ""),
+    invalidationTrigger: humanizeText(timing.invalidationTrigger || ""),
+    tomorrowChecklist: normalizeTextList(timing.tomorrowChecklist)
+  };
+}
+
 function normalizeOllamaInsights(remote = {}) {
   const advice = remote.stockAdvice || {};
   const sentiment = remote.newsSentiment || {};
@@ -498,6 +511,7 @@ function normalizeOllamaInsights(remote = {}) {
       summary: humanizeText(advice.summary || "조건 확인이 필요합니다."),
       personalRisk: normalizePersonalRisk(advice.personalRisk),
       personalAdjustment: normalizePersonalAdjustment(advice.personalAdjustment),
+      tradeTiming: normalizeTradeTiming(advice.tradeTiming),
       buyConditions: normalizeTextList(advice.buyConditions),
       watchConditions: normalizeTextList(advice.watchConditions),
       sellConditions: normalizeTextList(advice.sellConditions),

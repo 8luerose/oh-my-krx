@@ -2131,6 +2131,74 @@ def _sentiment_action_guide(decision: str, probabilities: dict[str, int]) -> lis
     ]
 
 
+def _indicator_price_context(req: ChatRequest) -> dict[str, str]:
+    indicator = req.indicatorSnapshot if isinstance(req.indicatorSnapshot, dict) else {}
+    return {
+        "support": _price_text(indicator.get("supportLevel")),
+        "resistance": _price_text(indicator.get("resistanceLevel")),
+    }
+
+
+def _trade_timing_plan(
+    decision: str,
+    ma20: dict[str, str],
+    probabilities: dict[str, int],
+    personal_adjustment: dict[str, Any],
+    req: ChatRequest,
+) -> dict[str, Any]:
+    prices = _indicator_price_context(req)
+    support = prices["support"]
+    resistance = prices["resistance"]
+    personal_applied = bool(personal_adjustment.get("applied"))
+    personal_line = _clean(personal_adjustment.get("actionLine"), "")
+
+    if decision == "매수 검토":
+        entry = (
+            f"현재가가 20일선 {ma20['ma20']} 위에서 마감하고, 저항선 {resistance} 돌파 뒤 거래량이 붙을 때만 분할 매수 검토입니다."
+        )
+        exit_line = (
+            f"매수 후 20일선 {ma20['ma20']} 또는 지지선 {support}을 다시 이탈하면 비중 축소 기준을 먼저 적용합니다."
+        )
+        wait_line = "시초가가 급등했는데 거래량 유지가 약하면 첫 진입을 미루고 눌림을 기다립니다."
+        invalidation = "호재 뉴스가 있어도 종가가 20일선 아래로 밀리면 매수 검토 시나리오는 무효입니다."
+        tone = "positive"
+    elif decision == "매도 검토":
+        entry = "신규 매수는 보류합니다. 반등이 나와도 악재 해소와 거래량 안정이 확인되기 전에는 추격하지 않습니다."
+        exit_line = (
+            f"보유 중이면 20일선 {ma20['ma20']} 재이탈, 지지선 {support} 붕괴, 하락 거래량 증가가 겹칠 때 매도 검토입니다."
+        )
+        wait_line = "이미 큰 폭으로 하락한 뒤에는 즉시 전량 판단보다 반등 실패 여부를 한 번 더 확인합니다."
+        invalidation = "다음 거래일 강한 거래량으로 20일선을 회복하고 악재 뉴스가 진정되면 매도 우선 시나리오를 재검토합니다."
+        tone = "negative"
+    else:
+        entry = (
+            f"새 매수는 다음 종가가 20일선 {ma20['ma20']} 위에서 유지되고 뉴스 원문과 거래량이 같은 방향일 때만 검토합니다."
+        )
+        exit_line = (
+            f"보유 중이면 지지선 {support} 이탈과 하락 거래량 증가가 같이 나올 때 방어 기준을 적용합니다."
+        )
+        wait_line = f"상승 {probabilities['up']}%, 하락 {probabilities['down']}%처럼 우위가 약하면 첫 30분 가격 반응을 기다립니다."
+        invalidation = "상승·하락 근거 중 하나가 거래량으로 확인될 때까지 관망 판단을 유지합니다."
+        tone = "neutral"
+
+    if personal_applied and personal_line:
+        exit_line = personal_line
+
+    return {
+        "title": "언제 사고 언제 팔아야 하나요?",
+        "tone": tone,
+        "entryTiming": entry,
+        "exitTiming": exit_line,
+        "waitCondition": wait_line,
+        "invalidationTrigger": invalidation,
+        "tomorrowChecklist": [
+            f"종가가 20일선 {ma20['ma20']} 위인지 확인",
+            f"지지선 {support}과 저항선 {resistance} 중 어디에 가까운지 확인",
+            "뉴스 원문과 거래량이 같은 방향인지 확인",
+        ],
+    }
+
+
 def _beginner_coach_card(
     decision: str,
     score: int,
@@ -2232,6 +2300,7 @@ def _fallback_ollama_insights(
     fallback_reason = _friendly_llm_fallback_reason(llm_meta.get("fallbackReason"))
     decision_reason = _decision_reason(decision, score, ma20)
     report_comment = _after_market_comment(subject, decision, score, probabilities, summary_points)
+    trade_timing = _trade_timing_plan(decision, ma20, probabilities, personal_adjustment, req)
     beginner_coach = _beginner_coach_card(
         decision,
         score,
@@ -2266,6 +2335,7 @@ def _fallback_ollama_insights(
             "summary": advice_summary,
             "personalRisk": personal_diagnostics,
             "personalAdjustment": personal_adjustment,
+            "tradeTiming": trade_timing,
             "buyConditions": [
                 _clean(decision_summary.get("buyReviewCondition") if isinstance(decision_summary, dict) else "", f"현재가 {ma20['close']}가 20일선 {ma20['ma20']} 위에서 마감하고 거래량이 늘어야 합니다."),
                 "호재 후보가 가격 반응과 거래량으로 확인될 때만 검토합니다.",
@@ -2588,6 +2658,13 @@ def _build_ollama_insights_prompt(
   "stockAdvice": {{
     "decision": "매수 검토|관망|매도 검토",
     "summary": "",
+    "tradeTiming": {{
+      "entryTiming": "",
+      "exitTiming": "",
+      "waitCondition": "",
+      "invalidationTrigger": "",
+      "tomorrowChecklist": []
+    }},
     "buyConditions": [],
     "watchConditions": [],
     "sellConditions": []
