@@ -568,6 +568,7 @@ export default function TradingViewPriceChart({
   const forecastGuide = useMemo(() => {
     if (!chartMetrics?.latest || !aiDecision) return null;
     const consensus = ai?.ollamaInsights?.crossFeatureConsensus || null;
+    const threeFeaturePlan = ai?.ollamaInsights?.threeFeaturePlan || null;
     const close = priceLineValue(chartMetrics.latest.close);
     if (!close) return null;
     const resistance = priceLineValue(chartMetrics.resistance);
@@ -619,6 +620,14 @@ export default function TradingViewPriceChart({
         tone: ['positive', 'negative', 'neutral'].includes(signal?.tone) ? signal.tone : 'neutral'
       }))
       : [];
+    const planSteps = Array.isArray(threeFeaturePlan?.steps)
+      ? threeFeaturePlan.steps.slice(0, 4).map((step) => ({
+        label: compactText(step?.label, '확인', 12),
+        state: compactText(step?.result, '확인 필요', 28),
+        action: compactText(step?.action, '', 72),
+        tone: ['positive', 'negative', 'mixed', 'neutral'].includes(step?.tone) ? step.tone : 'neutral'
+      })).filter((step) => step.label)
+      : [];
     const runtime = ai?.ollamaInsights?.runtimeCache || null;
     const refreshStatus = ai?.ollamaInsightsRefreshStatus || '';
     const runtimeLabel = refreshStatus === 'refreshing'
@@ -638,6 +647,9 @@ export default function TradingViewPriceChart({
       agreementLabel: consensus?.agreement ? `종합 ${compactText(consensus.agreement, '', 18)}` : '상담·뉴스·장후 대기',
       consensusSummary: compactText(consensus?.summary, '상담, 뉴스 확률, 장후 리포트를 함께 연결합니다.', 96),
       signals,
+      planTitle: compactText(threeFeaturePlan?.title, 'Ollama 3단계 실행', 24),
+      planHeadline: compactText(threeFeaturePlan?.headline || threeFeaturePlan?.summary, '상담 → 뉴스 → 장후 순서로 확인합니다.', 86),
+      planSteps,
       probabilityLabel: hasProbability ? `상승 ${upProbability}% · 하락 ${downProbability}%` : '확률 계산 중',
       modeLabel: aiDecision.live ? 'Ollama LLM 기준' : aiDecision.modeLabel || '근거 계산 기준',
       runtimeLabel
@@ -1035,6 +1047,31 @@ export default function TradingViewPriceChart({
               ))}
             </div>
           )}
+          {forecastGuide.planSteps.length > 0 && (
+            <div className={styles.forecastPlanBox} aria-label="Ollama 3단계 차트 실행 순서">
+              <div className={styles.forecastPlanHeader}>
+                <span>{forecastGuide.planTitle}</span>
+                <b>상담 → 뉴스 → 장후</b>
+              </div>
+              <p>{forecastGuide.planHeadline}</p>
+              <div className={styles.forecastPlanStrip}>
+                {forecastGuide.planSteps.map((step) => (
+                  <span
+                    key={`${step.label}-${step.state}`}
+                    className={clsx(
+                      step.tone === 'positive' && styles.forecastPlanPositive,
+                      step.tone === 'negative' && styles.forecastPlanNegative,
+                      step.tone === 'mixed' && styles.forecastPlanMixed
+                    )}
+                  >
+                    <em>{step.label}</em>
+                    <b>{step.state}</b>
+                    {step.action && <small>{step.action}</small>}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
           <small>{forecastGuide.probabilityLabel} · {forecastGuide.runtimeLabel ? `${forecastGuide.runtimeLabel} · ` : ''}{forecastGuide.consensusSummary}</small>
           <em>{forecastGuide.nextAction} · {forecastGuide.modeLabel}</em>
         </aside>
@@ -1157,6 +1194,12 @@ export default function TradingViewPriceChart({
             <b>다음</b>
             <strong>{aiDecision.timingNextAction || aiDecision.nextWatch || aiDecision.primaryCondition}</strong>
           </span>
+          {forecastGuide?.planSteps?.length > 0 && (
+            <span>
+              <b>3단계</b>
+              <strong>{forecastGuide.planSteps.map((step) => step.label.replace(/^[0-9. ]+/, '')).slice(0, 3).join(' → ')}</strong>
+            </span>
+          )}
           {hasPersonalContext && (
             <span>
               <b>내 기준</b>
