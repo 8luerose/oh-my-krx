@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bot, ChevronUp, ChevronDown, CheckCircle2, XCircle, ShieldAlert, Clock3, Database, Info, Cpu, Newspaper, TrendingUp, Lightbulb } from 'lucide-react';
+import { Bot, ChevronUp, ChevronDown, CheckCircle2, XCircle, ShieldAlert, Clock3, Database, Info, Cpu, Newspaper, TrendingUp, Lightbulb, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
 import styles from './FloatingAiCard.module.css';
 
@@ -97,7 +97,7 @@ function reportRuntimeNote(status, hasReport, runtime, storageNote) {
   return '장후 리포트는 최신 저장 브리프를 기준으로 연결됩니다.';
 }
 
-export default function FloatingAiCard({ ai, events, asOf, onExpandedChange }) {
+export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onRefreshAi }) {
   const [expanded, setExpanded] = useState(false);
 
   if (!ai) return null;
@@ -210,6 +210,17 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange }) {
             <span>
               {ai.modeLabel || '근거 기반 답변'}{ai.llmModel ? ` · ${ai.llmModel}` : ''}. 조건 확인용이며 평균단가·보유기간·손실허용은 샌드박스에 저장된 값만 반영합니다.
             </span>
+            {onRefreshAi && (
+              <button
+                type="button"
+                className={styles.aiRefreshButton}
+                onClick={onRefreshAi}
+                aria-label="Ollama AI 새로 계산"
+              >
+                <RefreshCw size={13} aria-hidden="true" />
+                새로 계산
+              </button>
+            )}
           </div>
 
           {ai.storage && (

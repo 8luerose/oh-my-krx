@@ -92,7 +92,8 @@ function App() {
     loading,
     error,
     changeStock,
-    changeInterval
+    changeInterval,
+    refreshAi
   } = useWorkspace();
 
   const [learningMode, setLearningMode] = useState(false);
@@ -201,6 +202,7 @@ function App() {
             onTermClick={handleSelectTerm}
             aiCardExpanded={aiCardExpanded}
             onPanelOpenChange={setChartPanelOpen}
+            onRefreshAi={refreshAi}
           />
         )}
       </div>
@@ -263,6 +265,7 @@ function App() {
             events={data.events}
             asOf={data.asOf}
             onExpandedChange={setAiCardExpanded}
+            onRefreshAi={refreshAi}
           />
         )}
       </div>

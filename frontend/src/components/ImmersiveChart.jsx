@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
+import { RefreshCw } from 'lucide-react';
 import TradingViewPriceChart from './TradingViewPriceChart';
 import styles from './ImmersiveChart.module.css';
 
@@ -64,7 +65,7 @@ function marketMoodTone(value = '') {
   return 'neutral';
 }
 
-export default function ImmersiveChart({ stock, chart, zones, events, ai, indicatorSnapshot, decisionSummary, interval, onChangeInterval, stockOptions = [], onChangeStock, learningMode, onTermClick, aiCardExpanded = false, onPanelOpenChange }) {
+export default function ImmersiveChart({ stock, chart, zones, events, ai, indicatorSnapshot, decisionSummary, interval, onChangeInterval, stockOptions = [], onChangeStock, learningMode, onTermClick, aiCardExpanded = false, onPanelOpenChange, onRefreshAi }) {
   const toolbarRef = useRef(null);
   const [activePanel, setActivePanel] = useState('none'); // 'none', 'stocks', 'guide', 'ai'
   const [guideTab, setGuideTab] = useState('ma'); // 'ma', 'beginner', 'event'
@@ -608,6 +609,16 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
                       <span>{aiPipelineSummary.storageLabel}</span>
                       <span>{aiPipelineSummary.reportStorageLabel}</span>
                       <span>{aiPipelineSummary.qdrantLabel}</span>
+                      <button
+                        type="button"
+                        className={styles.aiPipelineRefreshBtn}
+                        onClick={onRefreshAi}
+                        disabled={!onRefreshAi}
+                        aria-label="Ollama 상담과 장후 리포트 새로 계산"
+                      >
+                        <RefreshCw size={13} aria-hidden="true" />
+                        새로 계산
+                      </button>
                     </div>
                     <p className={styles.aiPipelineHint}>
                       {stock.name}을 선택하면 차트·재무·뉴스를 먼저 불러오고, Ollama 상담과 장후 리포트는 뒤에서 이어 붙입니다.

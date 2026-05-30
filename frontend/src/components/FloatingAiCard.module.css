@@ -206,12 +206,48 @@
   margin-top: 1px;
 }
 
+.runtimeNotice span,
+.storageNotice span {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .runtimeNotice svg {
   color: var(--color-accent);
 }
 
 .storageNotice svg {
   color: var(--color-positive);
+}
+
+.aiRefreshButton {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 4px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  border-radius: var(--radius-round);
+  background: rgba(37, 99, 235, 0.2);
+  color: #dbeafe;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1.1;
+  padding: 6px 8px;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.aiRefreshButton:hover {
+  border-color: rgba(147, 197, 253, 0.5);
+  background: rgba(37, 99, 235, 0.32);
+}
+
+.aiRefreshButton:active {
+  transform: translateY(1px);
+}
+
+.aiRefreshButton svg {
+  margin-top: 0;
 }
 
 .ollamaWorkflowGrid {

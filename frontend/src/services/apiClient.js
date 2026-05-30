@@ -44,6 +44,10 @@ export function invalidateAiCachesForStock(code) {
   });
 }
 
+export function invalidateAfterMarketReportCache() {
+  afterMarketReportCache.clear();
+}
+
 async function requestJson(path, options = {}) {
   const baseUrl = getRuntimeConfig().API_BASE_URL || DEFAULT_API_BASE_URL;
   const response = await fetch(`${baseUrl}${path}`, {

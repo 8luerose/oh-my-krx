@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
+  invalidateAfterMarketReportCache,
+  invalidateAiCachesForStock,
   loadLatestOllamaAfterMarketReport,
   loadStockAi,
   loadStockCoreWorkspace,
@@ -165,6 +167,12 @@ export function useWorkspace(initialCode = '005930', initialInterval = 'daily') 
     setActiveCode((current) => (current === code ? current : code));
   }, []);
 
+  const refreshAi = useCallback(() => {
+    invalidateAiCachesForStock(activeCode);
+    invalidateAfterMarketReportCache();
+    setPortfolioRefreshKey((value) => value + 1);
+  }, [activeCode]);
+
   return {
     activeCode,
     interval,
@@ -172,6 +180,7 @@ export function useWorkspace(initialCode = '005930', initialInterval = 'daily') 
     loading,
     error,
     changeStock,
-    changeInterval
+    changeInterval,
+    refreshAi
   };
 }
