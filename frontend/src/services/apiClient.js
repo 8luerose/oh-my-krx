@@ -340,6 +340,31 @@ function aiRuntime(remoteAi) {
   };
 }
 
+function normalizePersonalRisk(value) {
+  if (!value || typeof value !== "object") return null;
+  return {
+    ...value,
+    statusLabel: humanizeText(value.statusLabel || ""),
+    summary: humanizeText(value.summary || ""),
+    actionLine: humanizeText(value.actionLine || ""),
+    checklist: normalizeTextList(value.checklist),
+    profitLossText: value.profitLossText || "",
+    currentPriceText: value.currentPriceText || "",
+    averagePriceText: value.averagePriceText || "",
+    stopLossPriceText: value.stopLossPriceText || ""
+  };
+}
+
+function normalizePortfolioGuidance(value) {
+  if (!value || typeof value !== "object") return null;
+  return {
+    ...value,
+    summary: humanizeText(value.summary || ""),
+    checklist: normalizeTextList(value.checklist),
+    positionDiagnostics: normalizePersonalRisk(value.positionDiagnostics)
+  };
+}
+
 function normalizeAi(remoteAi) {
   const structured = remoteAi?.structured || {};
   const positives = structured.positives || structured.positiveFactors || fallbackWorkspace.ai.positives;
@@ -366,7 +391,7 @@ function normalizeAi(remoteAi) {
     confidence: normalizeConfidence(remoteAi?.confidence || fallbackWorkspace.ai.confidence),
     sources: remoteAi?.sources || fallbackWorkspace.ai.sources,
     sourceTitles: (remoteAi?.sources || structured.sources || []).map((source) => humanizeText(source?.title || source?.type || source)).filter(Boolean),
-    portfolioGuidance: structured.portfolioGuidance || null,
+    portfolioGuidance: normalizePortfolioGuidance(structured.portfolioGuidance),
     fundamentalGuidance: structured.fundamentalGuidance || null,
     storage: remoteAi?.storage || null,
     ...runtime
@@ -425,6 +450,7 @@ function normalizeOllamaInsights(remote = {}) {
       title: advice.title || "이 종목 지금 사도 되나요?",
       decision: humanizeText(advice.decision || "관망"),
       summary: humanizeText(advice.summary || "조건 확인이 필요합니다."),
+      personalRisk: normalizePersonalRisk(advice.personalRisk),
       buyConditions: normalizeTextList(advice.buyConditions),
       watchConditions: normalizeTextList(advice.watchConditions),
       sellConditions: normalizeTextList(advice.sellConditions),

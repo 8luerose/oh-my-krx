@@ -563,7 +563,10 @@ def _build_structured_answer(
     news_headlines = req.newsHeadlines or []
     indicator = req.indicatorSnapshot if isinstance(req.indicatorSnapshot, dict) else None
     decision = req.currentDecisionSummary if isinstance(req.currentDecisionSummary, dict) else None
-    portfolio = _portfolio_guidance(req.portfolioContext if isinstance(req.portfolioContext, dict) else None)
+    portfolio_context = req.portfolioContext if isinstance(req.portfolioContext, dict) else None
+    portfolio = _portfolio_guidance(portfolio_context)
+    personal_diagnostics = _personal_position_diagnostics(req, portfolio_context)
+    portfolio["positionDiagnostics"] = personal_diagnostics
     zones = _trade_zones(req)
     buy_zone = _zone_by_type(zones, "buy_review", "buy")
     split_zone = _zone_by_type(zones, "split_buy", "split")
@@ -681,7 +684,7 @@ def _build_structured_answer(
         "tradeZones": zones,
         "evidence": evidence[:5],
         "risks": [
-            "평균단가, 보유기간, 손실허용은 샌드박스에 저장된 값이 있을 때만 참고합니다.",
+            personal_diagnostics["actionLine"],
             "차트 이벤트는 원인 후보이며 확정 원인이 아닙니다.",
             "투자 지시가 아니라 교육용 분석 보조입니다.",
         ],
@@ -1260,6 +1263,114 @@ def _ma20_context(req: ChatRequest) -> dict[str, str]:
     }
 
 
+def _risk_band_percent(risk_tolerance: str) -> float:
+    if risk_tolerance == "낮음":
+        return 3.0
+    if risk_tolerance == "높음":
+        return 12.0
+    if risk_tolerance == "중간":
+        return 7.0
+    return 5.0
+
+
+def _personal_position_diagnostics(req: ChatRequest, portfolio: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(portfolio, dict) or not bool(portfolio.get("saved")):
+        return {
+            "status": "not_saved",
+            "statusLabel": "샌드박스 미저장",
+            "summary": "이 종목을 포트폴리오 샌드박스에 담으면 평균단가와 손실허용 기준을 함께 계산합니다.",
+            "actionLine": "기업 선택만으로는 DB에 저장되지 않으므로, 개인 조건 반영이 필요하면 샌드박스에 먼저 담아야 합니다.",
+            "checklist": [
+                "가상 비중을 정합니다.",
+                "평균단가를 입력합니다.",
+                "보유기간과 손실허용 범위를 고릅니다.",
+            ],
+        }
+
+    latest = _latest_chart_row(req)
+    close = _number(latest.get("close"), None)
+    average_price = _number(portfolio.get("averagePrice"), None)
+    risk_tolerance = _clean(portfolio.get("riskTolerance"), "미입력")
+    holding_period = _clean(portfolio.get("holdingPeriod"), "미입력")
+    weight = _number(portfolio.get("weight"), None)
+    band = _risk_band_percent(risk_tolerance)
+
+    base = {
+        "status": "saved",
+        "statusLabel": "개인 조건 반영",
+        "currentPrice": close,
+        "currentPriceText": _price_text(close),
+        "averagePrice": average_price,
+        "averagePriceText": _price_text(average_price),
+        "holdingPeriod": holding_period,
+        "riskTolerance": risk_tolerance,
+        "riskBandPercent": band,
+        "weight": weight,
+    }
+
+    if close is None or average_price is None or average_price <= 0:
+        return {
+            **base,
+            "status": "missing_average_price",
+            "statusLabel": "평균단가 필요",
+            "summary": "평균단가가 없어 현재 손익률과 손실허용 기준을 계산하지 못했습니다.",
+            "actionLine": "평균단가를 저장하면 AI가 매수 검토보다 리스크 관리 기준을 먼저 계산합니다.",
+            "checklist": [
+                "평균단가를 입력합니다.",
+                "현재가와 20일선 위치를 함께 봅니다.",
+                "손실허용 범위를 낮음·중간·높음 중 하나로 고릅니다.",
+            ],
+        }
+
+    profit_loss_rate = (close - average_price) / average_price * 100
+    stop_loss_price = average_price * (1 - band / 100)
+    distance_to_stop = (close - stop_loss_price) / stop_loss_price * 100 if stop_loss_price > 0 else 0
+
+    if profit_loss_rate <= -band:
+        status = "loss_limit_exceeded"
+        status_label = "손실허용 초과"
+        action = "새 매수보다 손실 확대를 막는 기준과 비중 축소 조건을 먼저 확인합니다."
+    elif profit_loss_rate < 0:
+        status = "loss_zone"
+        status_label = "손실 구간"
+        action = "물타기보다 20일선 회복, 거래량 안정, 악재 해소가 동시에 나오는지 확인합니다."
+    elif profit_loss_rate >= band:
+        status = "profit_zone"
+        status_label = "수익 구간"
+        action = "추가 매수보다 일부 수익 보호 기준과 저항선 돌파 유지 여부를 먼저 확인합니다."
+    else:
+        status = "near_average"
+        status_label = "평단 근처"
+        action = "평균단가 근처에서는 방향을 단정하지 말고 다음 종가와 거래량을 확인합니다."
+
+    weight_note = (
+        "가상 비중이 높아 한 번의 판단보다 분할 대응 기준이 필요합니다."
+        if weight is not None and weight >= 35
+        else "가상 비중은 과도하지 않지만 동일 섹터 집중 여부를 함께 확인합니다."
+    )
+
+    return {
+        **base,
+        "status": status,
+        "statusLabel": status_label,
+        "profitLossRate": round(profit_loss_rate, 2),
+        "profitLossText": _percent_text(profit_loss_rate),
+        "stopLossPrice": round(stop_loss_price),
+        "stopLossPriceText": _price_text(stop_loss_price),
+        "distanceToStopRate": round(distance_to_stop, 2),
+        "summary": (
+            f"현재가 {_price_text(close)}은 평균단가 {_price_text(average_price)} 대비 "
+            f"{_percent_text(profit_loss_rate)}입니다. 손실허용 {risk_tolerance} 기준({band:.0f}%)에서는 {status_label}입니다."
+        ),
+        "actionLine": action,
+        "checklist": [
+            f"손실허용 기준 가격 {_price_text(stop_loss_price)}을 먼저 적어 둡니다.",
+            f"보유기간 {holding_period} 기준으로 장중 대응인지 종가 확인인지 구분합니다.",
+            weight_note,
+        ],
+    }
+
+
 def _decision_from_inputs(score: int, position: str) -> str:
     if score >= 24 and position in {"above", "near"}:
         return "매수 검토"
@@ -1468,7 +1579,9 @@ def _fallback_ollama_insights(
     headlines = _headlines_from_context(events, news_headlines)
     headline_analysis = _headline_analysis_items(news_headlines)
     up_reasons, down_risks = _headline_reason_lists(news_headlines)
-    portfolio = _portfolio_guidance(req.portfolioContext if isinstance(req.portfolioContext, dict) else None)
+    portfolio_context = req.portfolioContext if isinstance(req.portfolioContext, dict) else None
+    portfolio = _portfolio_guidance(portfolio_context)
+    personal_diagnostics = _personal_position_diagnostics(req, portfolio_context)
     fundamentals = _fundamental_guidance(req.fundamentalSnapshot if isinstance(req.fundamentalSnapshot, dict) else None)
     summary_points = _summary_points(req.summary)
     fallback_reason = _friendly_llm_fallback_reason(llm_meta.get("fallbackReason"))
@@ -1493,6 +1606,7 @@ def _fallback_ollama_insights(
                 decision_summary.get("summary") if isinstance(decision_summary, dict) else "",
                 decision_reason,
             ),
+            "personalRisk": personal_diagnostics,
             "buyConditions": [
                 _clean(decision_summary.get("buyReviewCondition") if isinstance(decision_summary, dict) else "", f"현재가 {ma20['close']}가 20일선 {ma20['ma20']} 위에서 마감하고 거래량이 늘어야 합니다."),
                 "호재 후보가 가격 반응과 거래량으로 확인될 때만 검토합니다.",
@@ -1507,10 +1621,11 @@ def _fallback_ollama_insights(
                 "악재 후보가 늘고 반등 거래량이 약하면 손실 확대를 막는 기준을 먼저 세웁니다.",
             ],
             "riskNotes": [
+                personal_diagnostics["summary"],
+                personal_diagnostics["actionLine"],
                 portfolio["summary"],
                 fundamentals["summary"],
-                "실계좌 수량은 저장하지 않으므로 투자 지시로 쓰면 안 됩니다.",
-            ],
+            ][:4],
         },
         "newsSentiment": {
             "title": "뉴스 감성 기반 단기 방향 예측",
@@ -1627,6 +1742,8 @@ def _merge_insight_dict(base: dict[str, Any], generated: dict[str, Any] | None) 
             next_value = {**current}
             for field, value in generated[key].items():
                 if key == "newsSentiment" and field in {"score", "label", "nextTradingDay"}:
+                    continue
+                if key == "stockAdvice" and field == "personalRisk":
                     continue
                 if key == "stockAdvice" and field == "decision" and value not in {"매수 검토", "관망", "매도 검토"}:
                     continue
@@ -2164,11 +2281,14 @@ def chat(req: ChatRequest):
     if term_lines:
         answer_parts += ["", "초보자 용어 연결", *term_lines]
 
-    portfolio = _portfolio_guidance(req.portfolioContext if isinstance(req.portfolioContext, dict) else None)
+    portfolio_context = req.portfolioContext if isinstance(req.portfolioContext, dict) else None
+    portfolio = _portfolio_guidance(portfolio_context)
+    personal_diagnostics = _personal_position_diagnostics(req, portfolio_context)
     answer_parts += [
         "",
         "포트폴리오 맥락",
         f"- {portfolio['summary']}",
+        f"- {personal_diagnostics['summary']}",
         *[f"- {item}" for item in portfolio["checklist"][:3]],
     ]
 

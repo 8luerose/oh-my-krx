@@ -57,6 +57,7 @@ export default function FloatingAiCard({ ai, events, asOf }) {
   const newsSentiment = insights?.newsSentiment || {};
   const nextTradingDay = newsSentiment?.nextTradingDay || {};
   const afterMarketReport = insights?.afterMarketReport || {};
+  const personalRisk = stockAdvice.personalRisk || ai.portfolioGuidance?.positionDiagnostics || null;
   const visibleHeadlineCount = newsSentiment?.headlineSignals?.length || 0;
   const adviceDecision = stockAdvice.decision || '관망';
   const adviceSummary = stockAdvice.summary || '차트, 재무, 뉴스, 센티멘트를 합쳐 매수·관망·매도 조건을 정리합니다.';
@@ -170,6 +171,21 @@ export default function FloatingAiCard({ ai, events, asOf }) {
                   <div>
                     <strong>{adviceDecision}</strong>
                     <p>{adviceSummary}</p>
+                    {personalRisk && (
+                      <div className={styles.personalRiskPanel} aria-label="개인 조건 손익 기준">
+                        <div className={styles.personalRiskHeader}>
+                          <b>{personalRisk.statusLabel || '개인 조건 확인'}</b>
+                          {personalRisk.profitLossText && <span>{personalRisk.profitLossText}</span>}
+                        </div>
+                        <p>{personalRisk.summary}</p>
+                        <div className={styles.personalRiskMetrics}>
+                          {personalRisk.averagePriceText && <span>평단 {personalRisk.averagePriceText}</span>}
+                          {personalRisk.currentPriceText && <span>현재 {personalRisk.currentPriceText}</span>}
+                          {personalRisk.stopLossPriceText && <span>기준 {personalRisk.stopLossPriceText}</span>}
+                        </div>
+                        {personalRisk.actionLine && <em>{personalRisk.actionLine}</em>}
+                      </div>
+                    )}
                   </div>
                 </article>
                 <article className={styles.ollamaCard}>
@@ -471,6 +487,20 @@ export default function FloatingAiCard({ ai, events, asOf }) {
             <div className={styles.section}>
               <h4 className={styles.sectionTitle}>내 샌드박스 기준</h4>
               <p className={styles.limitNote}>{ai.portfolioGuidance.summary}</p>
+              {ai.portfolioGuidance.positionDiagnostics && (
+                <div className={styles.personalRiskPanel} aria-label="샌드박스 손익 진단">
+                  <div className={styles.personalRiskHeader}>
+                    <b>{ai.portfolioGuidance.positionDiagnostics.statusLabel}</b>
+                    {ai.portfolioGuidance.positionDiagnostics.profitLossText && (
+                      <span>{ai.portfolioGuidance.positionDiagnostics.profitLossText}</span>
+                    )}
+                  </div>
+                  <p>{ai.portfolioGuidance.positionDiagnostics.summary}</p>
+                  {ai.portfolioGuidance.positionDiagnostics.actionLine && (
+                    <em>{ai.portfolioGuidance.positionDiagnostics.actionLine}</em>
+                  )}
+                </div>
+              )}
               {ai.portfolioGuidance.checklist?.length > 0 && (
                 <ul className={styles.checklist}>
                   {ai.portfolioGuidance.checklist.slice(0, 4).map((item, index) => (
