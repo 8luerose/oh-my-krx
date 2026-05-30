@@ -59,6 +59,10 @@ services:
     environment:
       TZ: Asia/Seoul
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_ENABLED: ${QDRANT_ENABLED:-true}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-kr_stock_ai_memory}
+      QDRANT_VECTOR_SIZE: ${QDRANT_VECTOR_SIZE:-64}
+      QDRANT_TIMEOUT_SECONDS: ${QDRANT_TIMEOUT_SECONDS:-2.5}
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
       LLM_API_KEY: ${LLM_API_KEY:-}
       ZAI_API_KEY: ${ZAI_API_KEY:-}

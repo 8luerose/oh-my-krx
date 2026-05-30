@@ -65,6 +65,10 @@ export default function FloatingAiCard({ ai, events, asOf }) {
   const nextTradingDay = newsSentiment?.nextTradingDay || {};
   const afterMarketReport = insights?.afterMarketReport || {};
   const decisionFactors = Array.isArray(insights?.decisionFactors) ? insights.decisionFactors.slice(0, 4) : [];
+  const qdrant = insights?.qdrant || ai.marketReport?.qdrant || null;
+  const qdrantLabel = qdrant?.enabled
+    ? `Qdrant 검색 ${qdrant.retrievedCount || 0}개 · 저장 ${qdrant.storedCount || 0}개`
+    : '';
   const personalRisk = stockAdvice.personalRisk || ai.portfolioGuidance?.positionDiagnostics || null;
   const visibleHeadlineCount = newsSentiment?.headlineSignals?.length || 0;
   const adviceDecision = stockAdvice.decision || '관망';
@@ -136,6 +140,13 @@ export default function FloatingAiCard({ ai, events, asOf }) {
               <span>
                 {ai.storage.saved ? `AI 답변 저장 완료: ${ai.storage.table}` : 'AI 답변은 저장되지 않았습니다.'}
               </span>
+            </div>
+          )}
+
+          {qdrantLabel && (
+            <div className={styles.storageNotice}>
+              <Database size={15} />
+              <span>{qdrantLabel}. 비슷한 차트·뉴스 근거를 벡터 검색으로 함께 참고합니다.</span>
             </div>
           )}
 

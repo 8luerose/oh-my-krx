@@ -197,7 +197,11 @@ Copy `.env.example` to `.env` and adjust values for your environment.
 | `MARKETDATA_PROVIDER` | No | Provider: `pykrx` or `naver` (default: pykrx) |
 | `MARKETDATA_BASE_URL` | No | Market data service URL (Docker internal) |
 | `AI_SERVICE_BASE_URL` | No | AI service URL (Docker internal) |
-| `QDRANT_URL` | No | Vector store URL for future RAG indexing |
+| `QDRANT_URL` | No | Vector store URL used by ai-service to store and retrieve AI grounding documents |
+| `QDRANT_ENABLED` | No | Enable or disable Qdrant grounding memory. Default: `true` |
+| `QDRANT_COLLECTION` | No | Qdrant collection for AI grounding memory. Default: `kr_stock_ai_memory` |
+| `QDRANT_VECTOR_SIZE` | No | Deterministic hash-vector size for lightweight local RAG. Default: `64` |
+| `QDRANT_TIMEOUT_SECONDS` | No | Qdrant HTTP timeout. Default: `2.5` |
 | `LLM_PROVIDER` | No | `ollama`, `anthropic_compatible`, `openai_compatible`, `anthropic`, `openai`, or `auto`. Docker default is `ollama` |
 | `LLM_MODEL` | No | OpenAI-compatible model name |
 | `LLM_BASE_URL` | No | OpenAI-compatible API base URL |

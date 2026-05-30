@@ -499,6 +499,7 @@ function normalizeOllamaInsights(remote = {}) {
       nextWatch: normalizeTextList(report.nextWatch)
     },
     decisionFactors: normalizeDecisionFactors(remote.decisionFactors),
+    qdrant: remote.retrieval?.qdrant || null,
     beginnerNotes: normalizeTextList(remote.beginnerNotes),
     limitations: normalizeTextList(remote.limitations),
     storage: remote.storage || null
@@ -527,6 +528,7 @@ function normalizeAfterMarketReport(remote = {}) {
     beginnerNotes: normalizeTextList(remote.beginnerNotes),
     marketLeaders: remote.marketLeaders || null,
     limitations: normalizeTextList(remote.limitations),
+    qdrant: remote.retrieval?.qdrant || null,
     storage: remote.storage || null
   };
 }

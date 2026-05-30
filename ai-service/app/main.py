@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from datetime import date
+import hashlib
 import json
 import os
 from typing import Any
+import uuid
 from urllib import error, request
 
 from fastapi import FastAPI
@@ -11,6 +13,8 @@ from pydantic import BaseModel, Field
 
 
 app = FastAPI(title="kr-stock-daily-brief ai-service", version="0.1.0")
+
+_QDRANT_READY_COLLECTIONS: set[str] = set()
 
 
 class ChatRequest(BaseModel):
@@ -302,6 +306,207 @@ def _count_documents_by_type(documents: list[dict[str, str]]) -> dict[str, int]:
     return counts
 
 
+def _qdrant_enabled() -> bool:
+    return os.getenv("QDRANT_ENABLED", "true").strip().lower() not in {"0", "false", "no", "off"}
+
+
+def _qdrant_url() -> str:
+    return os.getenv("QDRANT_URL", "http://qdrant:6333").rstrip("/")
+
+
+def _qdrant_collection() -> str:
+    return os.getenv("QDRANT_COLLECTION", "kr_stock_ai_memory").strip() or "kr_stock_ai_memory"
+
+
+def _qdrant_vector_size() -> int:
+    try:
+        return max(16, min(512, int(os.getenv("QDRANT_VECTOR_SIZE", "64"))))
+    except ValueError:
+        return 64
+
+
+def _qdrant_timeout() -> float:
+    try:
+        return max(0.5, min(10.0, float(os.getenv("QDRANT_TIMEOUT_SECONDS", "2.5"))))
+    except ValueError:
+        return 2.5
+
+
+def _qdrant_meta_base() -> dict[str, Any]:
+    return {
+        "enabled": _qdrant_enabled(),
+        "collection": _qdrant_collection(),
+        "baseUrl": _qdrant_url(),
+        "vectorSize": _qdrant_vector_size(),
+        "storedCount": 0,
+        "retrievedCount": 0,
+        "error": "",
+    }
+
+
+def _qdrant_json(method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    data = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8") if payload is not None else None
+    req = request.Request(
+        f"{_qdrant_url()}/{path.lstrip('/')}",
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method=method,
+    )
+    with request.urlopen(req, timeout=_qdrant_timeout()) as res:
+        body = res.read().decode("utf-8")
+    return json.loads(body) if body else {}
+
+
+def _ensure_qdrant_collection() -> None:
+    collection = _qdrant_collection()
+    if collection in _QDRANT_READY_COLLECTIONS:
+        return
+    path = f"collections/{collection}"
+    try:
+        _qdrant_json("GET", path)
+    except error.HTTPError as exc:
+        if exc.code != 404:
+            raise
+        _qdrant_json("PUT", path, {
+            "vectors": {
+                "size": _qdrant_vector_size(),
+                "distance": "Cosine",
+            }
+        })
+    _QDRANT_READY_COLLECTIONS.add(collection)
+
+
+def _hash_vector(text: str, size: int) -> list[float]:
+    values = [0.0] * size
+    compact = "".join(str(text or "").lower().split())[:1200]
+    tokens = [token for token in str(text or "").lower().split() if token]
+    if len(compact) >= 2:
+        tokens.extend(compact[index:index + 2] for index in range(min(len(compact) - 1, 360)))
+    if not tokens:
+        tokens = ["empty"]
+    for token in tokens:
+        digest = hashlib.sha256(token.encode("utf-8")).digest()
+        index = int.from_bytes(digest[:4], "big") % size
+        sign = 1.0 if digest[4] % 2 == 0 else -1.0
+        weight = 1.0 + (digest[5] % 7) / 10.0
+        values[index] += sign * weight
+    norm = sum(value * value for value in values) ** 0.5 or 1.0
+    return [round(value / norm, 6) for value in values]
+
+
+def _qdrant_point_id(doc: dict[str, str], code: str, basis_date: str) -> str:
+    source = "|".join([
+        _clean(code, "market"),
+        _clean(basis_date, ""),
+        _clean(doc.get("id"), ""),
+        hashlib.sha1(_clean(doc.get("text"), "").encode("utf-8")).hexdigest(),
+    ])
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, source))
+
+
+def _qdrant_upsert_documents(
+    documents: list[dict[str, str]],
+    subject: str,
+    code: str,
+    topic_type: str,
+    basis_date: str,
+) -> int:
+    if not documents:
+        return 0
+    size = _qdrant_vector_size()
+    points = []
+    for doc in documents[:36]:
+        text = " ".join([
+            _clean(doc.get("title"), ""),
+            _clean(doc.get("type"), ""),
+            _clean(doc.get("text"), ""),
+        ])
+        points.append({
+            "id": _qdrant_point_id(doc, code, basis_date),
+            "vector": _hash_vector(text, size),
+            "payload": {
+                "docId": _clean(doc.get("id"), ""),
+                "type": _clean(doc.get("type"), ""),
+                "title": _compact(doc.get("title"), 160),
+                "text": _compact(doc.get("text"), 1200),
+                "basisDate": _clean(doc.get("basisDate"), basis_date),
+                "stockCode": _clean(code, ""),
+                "subject": _clean(subject, ""),
+                "topicType": _clean(topic_type, ""),
+                "source": "ai-service-retrieval-document",
+            },
+        })
+    _qdrant_json("PUT", f"collections/{_qdrant_collection()}/points?wait=true", {"points": points})
+    return len(points)
+
+
+def _qdrant_search(query: str, limit: int = 4) -> list[dict[str, Any]]:
+    payload = {
+        "vector": _hash_vector(query, _qdrant_vector_size()),
+        "limit": max(1, min(8, limit)),
+        "with_payload": True,
+    }
+    data = _qdrant_json("POST", f"collections/{_qdrant_collection()}/points/search", payload)
+    result = data.get("result")
+    return result if isinstance(result, list) else []
+
+
+def _qdrant_hits_to_documents(hits: list[dict[str, Any]], basis_date: str) -> list[dict[str, str]]:
+    documents: list[dict[str, str]] = []
+    for index, hit in enumerate(hits[:4], start=1):
+        payload = hit.get("payload") if isinstance(hit.get("payload"), dict) else {}
+        score = hit.get("score")
+        score_text = f"{float(score):.3f}" if isinstance(score, (int, float)) else "확인 필요"
+        title = _clean(payload.get("title"), "Qdrant 검색 근거")
+        text = _clean(payload.get("text"), "")
+        documents.append({
+            "id": f"qdrant-memory-{index}",
+            "type": "qdrant_memory",
+            "title": f"Qdrant 검색 근거: {title}",
+            "text": _compact({
+                "similarity": score_text,
+                "originalType": payload.get("type"),
+                "originalDocId": payload.get("docId"),
+                "text": text,
+            }, 620),
+            "basisDate": _clean(payload.get("basisDate"), basis_date),
+        })
+    return documents
+
+
+def _augment_with_qdrant_documents(
+    req: ChatRequest,
+    documents: list[dict[str, str]],
+    subject: str,
+    code: str,
+    topic_type: str,
+    basis_date: str,
+    query_text: str | None = None,
+) -> tuple[list[dict[str, str]], dict[str, Any]]:
+    meta = _qdrant_meta_base()
+    if not meta["enabled"]:
+        meta["error"] = "QDRANT_ENABLED=false"
+        return documents, meta
+    try:
+        _ensure_qdrant_collection()
+        meta["storedCount"] = _qdrant_upsert_documents(documents, subject, code, topic_type, basis_date)
+        query = query_text or " ".join([
+            _clean(req.question, ""),
+            _clean(subject, ""),
+            _clean(code, ""),
+            _compact(req.currentDecisionSummary, 220),
+            _compact(req.indicatorSnapshot, 220),
+            _compact(req.newsHeadlines[:3], 360),
+        ])
+        hits = _qdrant_search(query, limit=4)
+        qdrant_docs = _qdrant_hits_to_documents(hits, basis_date)
+        meta["retrievedCount"] = len(qdrant_docs)
+        return [*documents, *qdrant_docs], meta
+    except (error.URLError, TimeoutError, json.JSONDecodeError, KeyError, ValueError) as exc:
+        meta["error"] = f"{type(exc).__name__}: {_compact(exc, 120)}"
+        return documents, meta
+
+
 def _build_grounding_report(
     req: ChatRequest,
     documents: list[dict[str, str]],
@@ -328,11 +533,13 @@ def _build_grounding_report(
     causal_ids = sorted(doc_id for doc_id in ids if "-causal-" in doc_id)
     news_ids = sorted(doc_id for doc_id in ids if doc_id.startswith("news-headline-"))
     term_ids = sorted(doc_id for doc_id in ids if doc_id.startswith("term-"))
+    qdrant_ids = sorted(doc_id for doc_id in ids if doc_id.startswith("qdrant-memory-"))
     add_claim("차트 이벤트를 근거로 사용", event_ids[:6])
     add_claim("뉴스/공시/DART/토론 evidence 후보를 근거로 사용", evidence_ids[:8])
     add_claim("출처별 원인 점수와 텍스트 신호를 근거로 사용", causal_ids[:8])
     add_claim("국내 뉴스 헤드라인을 근거로 사용", news_ids[:8])
     add_claim("초보자 용어 사전을 근거로 사용", term_ids[:6])
+    add_claim("Qdrant 벡터 검색으로 찾은 유사 근거를 사용", qdrant_ids[:4])
 
     missing: list[str] = []
     if not documents:
@@ -1059,6 +1266,13 @@ def _llm_status() -> dict[str, Any]:
         "fallbackMode": "rag_fallback_rule_based",
         "timeoutSeconds": ollama_timeout if provider == "ollama" else llm_timeout,
         "maxTokens": int(os.getenv("LLM_MAX_TOKENS", "650")),
+        "qdrant": {
+            "enabled": _qdrant_enabled(),
+            "collection": _qdrant_collection(),
+            "baseUrl": _qdrant_url(),
+            "vectorSize": _qdrant_vector_size(),
+            "timeoutSeconds": _qdrant_timeout(),
+        },
     }
 
 
@@ -2222,7 +2436,16 @@ def _after_market_report_fallback(
     }
 
 
-def _build_after_market_report_prompt(summary: dict[str, Any], basis_date: str) -> list[dict[str, str]]:
+def _build_after_market_report_prompt(
+    summary: dict[str, Any],
+    basis_date: str,
+    memory_documents: list[dict[str, str]] | None = None,
+) -> list[dict[str, str]]:
+    memory_context = "\n".join(
+        f"[{doc['id']}] {doc['title']} | {_compact(doc.get('text'), 220)}"
+        for doc in (memory_documents or [])
+        if str(doc.get("id", "")).startswith("qdrant-memory-")
+    )
     system = (
         "너는 한국 주식 초보자를 위한 장후 시장 요약 리포트 작성자다. "
         "반드시 제공된 저장 브리프만 근거로 쓰고 투자 지시, 수익 보장, 확정 표현을 금지한다. "
@@ -2233,6 +2456,9 @@ def _build_after_market_report_prompt(summary: dict[str, Any], basis_date: str) 
 
 저장 브리프:
 {json.dumps(summary, ensure_ascii=False, default=str)[:5000]}
+
+Qdrant 유사 근거:
+{memory_context or "아직 누적된 유사 근거가 없습니다."}
 
 다음 JSON 스키마를 지켜서 반환해라.
 {{
@@ -2333,6 +2559,14 @@ def ollama_insights(req: ChatRequest):
     code = _clean(req.stockCode, "")
     basis_date = _clean(req.contextDate, date.today().isoformat())
     documents = _build_retrieval_documents(req, subject, code, _clean(req.topicType, "stock"), basis_date)
+    documents, qdrant_meta = _augment_with_qdrant_documents(
+        req,
+        documents,
+        subject,
+        code,
+        _clean(req.topicType, "stock"),
+        basis_date,
+    )
     seed = _fallback_ollama_insights(req, subject, code, basis_date, documents, _ollama_config_meta())
     llm_answer, llm_meta = _call_ollama_llm(
         _build_ollama_insights_prompt(req, subject, code, basis_date, documents, seed),
@@ -2359,6 +2593,7 @@ def ollama_insights(req: ChatRequest):
     response["answer"] = _compose_ollama_answer(subject, code, response)
     response["mode"] = "ollama_llm" if used_llm else "ollama_fallback_rule_based"
     response["retrieval"]["llm"] = {**llm_meta, "used": used_llm}
+    response["retrieval"]["qdrant"] = qdrant_meta
     if used_llm:
         response["limitations"] = [
             "Ollama 로컬 LLM이 제공된 근거 안에서 생성한 조건형 의견입니다.",
@@ -2376,8 +2611,25 @@ def ollama_after_market_report(req: ChatRequest):
         or summary.get("date"),
         date.today().isoformat(),
     )
+    subject = "장후 시장 요약 리포트"
+    retrieval_documents = [{
+        "id": "latest-daily-summary",
+        "type": "daily_summary",
+        "title": "최신 저장 브리프",
+        "basisDate": basis_date,
+        "text": _compact(summary, 1400),
+    }]
+    retrieval_documents, qdrant_meta = _augment_with_qdrant_documents(
+        req,
+        retrieval_documents,
+        subject,
+        "",
+        "after_market_report",
+        basis_date,
+        query_text=f"{basis_date} 장후 시장 요약 {summary.get('topGainer', '')} {summary.get('topLoser', '')} {summary.get('mostMentioned', '')}",
+    )
     llm_answer, llm_meta = _call_ollama_llm(
-        _build_after_market_report_prompt(summary, basis_date),
+        _build_after_market_report_prompt(summary, basis_date, retrieval_documents),
         json_mode=True,
     )
     fallback = _after_market_report_fallback(summary, basis_date, llm_meta)
@@ -2386,6 +2638,9 @@ def ollama_after_market_report(req: ChatRequest):
     used_llm = bool(llm_answer)
     response["mode"] = "ollama_llm" if used_llm else "ollama_fallback_rule_based"
     response["retrieval"]["llm"] = {**llm_meta, "used": used_llm}
+    response["retrieval"]["documents"] = retrieval_documents
+    response["retrieval"]["sourceCount"] = len(retrieval_documents)
+    response["retrieval"]["qdrant"] = qdrant_meta
     if used_llm:
         response["limitations"] = [
             "Ollama 로컬 LLM이 최신 저장 브리프를 읽고 생성한 장후 코멘트입니다.",
@@ -2407,6 +2662,14 @@ def chat(req: ChatRequest):
     term_lines = _term_lines(terms)
     search_context_lines = _search_context_lines(req.searchResult)
     retrieval_documents = _build_retrieval_documents(req, subject, code, topic_type, basis_date)
+    retrieval_documents, qdrant_meta = _augment_with_qdrant_documents(
+        req,
+        retrieval_documents,
+        subject,
+        code,
+        topic_type,
+        basis_date,
+    )
     answer_parts = [
         f"기준일: {basis_date}",
         f"대상: {subject}{f'({code})' if code else ''}",
@@ -2469,6 +2732,8 @@ def chat(req: ChatRequest):
         sources.insert(2, {"title": "종목 이벤트 API", "type": "events", "url": f"/api/stocks/{code}/events"})
         sources.insert(3, {"title": "종목 뉴스 헤드라인 API", "type": "news", "url": f"/api/stocks/{code}/news"})
         sources.insert(4, {"title": "조건형 거래 구간 API", "type": "trade_zones", "url": f"/api/stocks/{code}/trade-zones"})
+    if qdrant_meta.get("retrievedCount"):
+        sources.append({"title": "Qdrant 벡터 검색 근거", "type": "qdrant_memory", "url": "/collections/kr_stock_ai_memory"})
 
     status = _llm_status()
     ollama_seed = (
@@ -2509,6 +2774,7 @@ def chat(req: ChatRequest):
         "retrieval": {
             "documents": retrieval_documents,
             "sourceCount": len(retrieval_documents),
+            "qdrant": qdrant_meta,
             "llm": {
                 **llm_meta,
                 "used": used_llm,
