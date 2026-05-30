@@ -254,6 +254,10 @@ export default function TradingViewPriceChart({
   });
   const [showDetailPanels, setShowDetailPanels] = useState(false);
 
+  useEffect(() => {
+    setHover(null);
+  }, [stock?.code, interval]);
+
   const toggleLayer = (key) => {
     setVisibleLayers((current) => ({ ...current, [key]: !current[key] }));
   };
@@ -1220,6 +1224,10 @@ export default function TradingViewPriceChart({
               }).slice(0, 3).join(' → ')}</strong>
             </span>
           )}
+          <span>
+            <b>근거</b>
+            <strong>{aiDecision.live ? 'Ollama LLM' : compactText(aiDecision.modeLabel, '근거 계산', 24)}</strong>
+          </span>
           {hasPersonalContext && (
             <span>
               <b>내 기준</b>

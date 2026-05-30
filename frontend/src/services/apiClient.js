@@ -32,6 +32,23 @@ function withRuntimeCacheMeta(value, runtimeCache) {
   return { ...value, runtimeCache };
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function shouldRetryOllamaInsights(remote = {}) {
+  const llm = remote.retrieval?.llm || {};
+  const reason = String(llm.fallbackReason || "");
+  return remote.mode !== "ollama_llm"
+    && llm.enabled !== false
+    && (
+      llm.used === false
+      || reason.includes("Timeout")
+      || reason.includes("Ollama 호출 실패")
+      || reason.includes("응답 지연")
+    );
+}
+
 export function invalidateAiCachesForStock(code) {
   const safeCode = String(code || "").trim();
   if (!safeCode) return;
@@ -841,20 +858,32 @@ export async function loadStockOllamaInsights(workspace, interval) {
     }));
   }
 
-  const promise = requestJson("/api/ai/ollama/insights", {
+  const requestPayload = {
     method: "POST",
     body: JSON.stringify({
       question: `${workspace.stock.name}을 지금 사도 되는지, 뉴스 감성 단기 방향과 장후 시장 요약까지 로컬 Ollama로 설명해줘`,
       context: buildAiContext(workspace, interval)
     })
-  }).then(normalizeOllamaInsights).then((value) => withRuntimeCacheMeta(value, {
-    hit: false,
-    source: "fresh_ollama",
-    label: value.storage?.saved ? "새 계산 후 DB 감사 로그 저장" : "새 계산 완료",
-    note: value.storage?.saved
-      ? `Ollama 상담 응답을 새로 받고 ${value.storage.table || "DB"}에 저장했습니다.`
-      : "Ollama 상담 응답을 새로 받았지만 DB 저장 상태는 확인이 필요합니다."
-  }));
+  };
+  const promise = requestJson("/api/ai/ollama/insights", requestPayload)
+    .then(async (remote) => {
+      if (shouldRetryOllamaInsights(remote)) {
+        await sleep(900);
+        return requestJson("/api/ai/ollama/insights", requestPayload);
+      }
+      return remote;
+    })
+    .then(normalizeOllamaInsights)
+    .then((value) => withRuntimeCacheMeta(value, {
+      hit: false,
+      source: value.mode === "ollama_llm" ? "fresh_ollama" : "fresh_ollama_fallback",
+      label: value.storage?.saved
+        ? value.mode === "ollama_llm" ? "새 계산 후 DB 감사 로그 저장" : "새 계산 후 규칙형 보강"
+        : "새 계산 완료",
+      note: value.storage?.saved
+        ? `Ollama 상담 응답을 새로 받고 ${value.storage.table || "DB"}에 저장했습니다.`
+        : "Ollama 상담 응답을 새로 받았지만 DB 저장 상태는 확인이 필요합니다."
+    }));
 
   setCachedPromise(ollamaInsightsCache, key, promise, AI_WORKSPACE_CACHE_MS);
   try {
