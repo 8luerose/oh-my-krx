@@ -126,6 +126,7 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
   const afterMarketReport = insights?.afterMarketReport || {};
   const beginnerCoach = insights?.beginnerCoach || null;
   const consensus = insights?.crossFeatureConsensus || null;
+  const threeFeaturePlan = insights?.threeFeaturePlan || null;
   const decisionFactors = Array.isArray(insights?.decisionFactors) ? insights.decisionFactors.slice(0, 5) : [];
   const qdrant = insights?.qdrant || ai.marketReport?.qdrant || null;
   const qdrantModeLabel = qdrant?.embeddingUsed
@@ -342,6 +343,37 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
                 <b>다음 행동</b>
                 <span>{consensus.nextAction || '다음 종가와 거래량을 확인합니다.'}</span>
               </article>
+            </div>
+          )}
+
+          {threeFeaturePlan?.steps?.length > 0 && (
+            <div className={styles.threeFeaturePlan} aria-label="Ollama 3단계 실행 순서">
+              <div className={styles.threeFeatureHeader}>
+                <span>{threeFeaturePlan.title || 'Ollama 3단계 실행 순서'}</span>
+                <strong>상담 → 뉴스 → 장후</strong>
+              </div>
+              <b>{threeFeaturePlan.headline || '세 기능을 순서대로 확인합니다.'}</b>
+              <p>{threeFeaturePlan.summary || '상담, 뉴스 확률, 장후 리포트를 함께 비교합니다.'}</p>
+              <div className={styles.threeFeatureStepGrid}>
+                {threeFeaturePlan.steps.slice(0, 4).map((step) => (
+                  <article
+                    key={`${step.label}-${step.result}`}
+                    className={clsx(
+                      styles.threeFeatureStep,
+                      step.tone === 'positive' && styles.threeFeaturePositive,
+                      step.tone === 'negative' && styles.threeFeatureNegative,
+                      step.tone === 'mixed' && styles.threeFeatureMixed
+                    )}
+                  >
+                    <div>
+                      <span>{step.label}</span>
+                      <strong>{step.result}</strong>
+                    </div>
+                    <p>{step.action}</p>
+                    {step.why && <em>{step.why}</em>}
+                  </article>
+                ))}
+              </div>
             </div>
           )}
 
@@ -575,6 +607,16 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
                           <li key={`${item}-${index}`}>{item}</li>
                         ))}
                       </ul>
+                    )}
+                    {afterMarketReport.actionPlan?.length > 0 && (
+                      <div className={styles.nextWatchBox}>
+                        <strong>장후 리포트 보고 할 행동</strong>
+                        <ul>
+                          {afterMarketReport.actionPlan.slice(0, 2).map((item, index) => (
+                            <li key={`${item}-${index}`}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
                   </div>
                 </article>

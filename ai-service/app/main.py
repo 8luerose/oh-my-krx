@@ -2449,6 +2449,11 @@ def _fallback_ollama_insights(
                 "호재/악재 후보의 뉴스 원문과 공시 확인",
                 "거래량이 평균 대비 유지되는지 확인",
             ],
+            "actionPlan": [
+                "장 시작 전에는 장후 리포트 분위기와 뉴스 원문을 먼저 확인합니다.",
+                "장중에는 20일선, 거래량, 뉴스 방향이 같은 쪽인지 봅니다.",
+                "장 마감 후에는 상담 결론과 뉴스 확률이 유지됐는지 다시 비교합니다.",
+            ],
         },
         "beginnerCoach": beginner_coach,
         "beginnerNotes": [
@@ -2470,6 +2475,7 @@ def _fallback_ollama_insights(
         "confidence": "medium" if documents else "low",
     }
     response["crossFeatureConsensus"] = _cross_feature_consensus(response)
+    response["threeFeaturePlan"] = _three_feature_action_plan(response)
     return response
 
 
@@ -2743,6 +2749,76 @@ def _cross_feature_consensus(response: dict[str, Any]) -> dict[str, Any]:
             {"label": "상담", "state": decision, "tone": advice_tone},
             {"label": "뉴스", "state": f"상승 {up_text} · 하락 {down_text}", "tone": news_tone},
             {"label": "장후", "state": mood, "tone": report_tone},
+        ],
+    }
+
+
+def _three_feature_action_plan(response: dict[str, Any]) -> dict[str, Any]:
+    advice = response.get("stockAdvice") if isinstance(response.get("stockAdvice"), dict) else {}
+    sentiment = response.get("newsSentiment") if isinstance(response.get("newsSentiment"), dict) else {}
+    report = response.get("afterMarketReport") if isinstance(response.get("afterMarketReport"), dict) else {}
+    consensus = response.get("crossFeatureConsensus") if isinstance(response.get("crossFeatureConsensus"), dict) else {}
+    probabilities = sentiment.get("nextTradingDay") if isinstance(sentiment.get("nextTradingDay"), dict) else {}
+    personal = advice.get("personalRisk") if isinstance(advice.get("personalRisk"), dict) else {}
+
+    decision = _clean(advice.get("decision"), "관망")
+    up = _number(probabilities.get("up"), None)
+    down = _number(probabilities.get("down"), None)
+    up_text = f"{int(round(up))}%" if up is not None else "확인"
+    down_text = f"{int(round(down))}%" if down is not None else "확인"
+    personal_status = _clean(personal.get("statusLabel"), "")
+    personal_line = _clean(personal.get("actionLine"), "")
+    advice_action = _clean(
+        personal_line,
+        _clean(
+            advice.get("tradeTiming", {}).get("waitCondition") if isinstance(advice.get("tradeTiming"), dict) else "",
+            (advice.get("watchConditions") or ["다음 종가와 거래량을 확인합니다."])[0],
+        ),
+    )
+
+    news_action = _clean(
+        (sentiment.get("actionGuide") or [""])[0] if isinstance(sentiment.get("actionGuide"), list) else "",
+        _clean(sentiment.get("caution"), "뉴스 제목만 보지 말고 가격과 거래량 반응을 같이 확인합니다."),
+    )
+    report_action = _clean(
+        (report.get("nextWatch") or [""])[0] if isinstance(report.get("nextWatch"), list) else "",
+        "장후 리포트의 시장 분위기와 다음 거래일 시초가 반응을 비교합니다.",
+    )
+    final_action = _clean(consensus.get("nextAction"), "세 기능이 같은 방향을 말하는지 먼저 확인합니다.")
+
+    return {
+        "title": "Ollama 3단계 실행 순서",
+        "headline": "상담 결론을 먼저 보고, 뉴스 확률과 장후 분위기로 확인 순서를 좁힙니다.",
+        "summary": _clean(consensus.get("summary"), "세 기능을 따로 보지 말고 같은 방향인지 비교합니다."),
+        "steps": [
+            {
+                "label": "1. 상담",
+                "result": decision if not personal_status else f"{decision} · {personal_status}",
+                "tone": _tone_from_decision(decision),
+                "action": _compact(advice_action, 110),
+                "why": _compact(advice.get("summary"), 110),
+            },
+            {
+                "label": "2. 뉴스",
+                "result": f"상승 {up_text} · 하락 {down_text}",
+                "tone": _tone_from_probability(up, down),
+                "action": _compact(news_action, 110),
+                "why": _compact(sentiment.get("summary"), 110),
+            },
+            {
+                "label": "3. 장후",
+                "result": _clean(report.get("mood"), "장후 확인"),
+                "tone": _tone_from_market_report(report),
+                "action": _compact(report_action, 110),
+                "why": _compact(report.get("llmComment"), 110),
+            },
+            {
+                "label": "최종 확인",
+                "result": _clean(consensus.get("agreement"), "확인 필요"),
+                "tone": _clean(consensus.get("tone"), "neutral"),
+                "action": _compact(final_action, 120),
+                "why": _compact(consensus.get("headline"), 110),
+            },
         ],
     }
 
@@ -3183,6 +3259,7 @@ def ollama_insights(req: ChatRequest):
     used_llm = bool(llm_answer)
     response = _apply_ollama_context_fields(response, used_llm)
     response["crossFeatureConsensus"] = _cross_feature_consensus(response)
+    response["threeFeaturePlan"] = _three_feature_action_plan(response)
     if used_llm and not generated:
         raw_answer = _compact(llm_answer, 900)
         if raw_answer.lstrip().startswith("{"):

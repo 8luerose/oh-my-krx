@@ -515,6 +515,23 @@ function normalizeCrossFeatureConsensus(value = {}) {
   };
 }
 
+function normalizeThreeFeaturePlan(value = {}) {
+  const plan = value && typeof value === "object" ? value : {};
+  const steps = Array.isArray(plan.steps) ? plan.steps : [];
+  return {
+    title: humanizeText(plan.title || "Ollama 3단계 실행 순서"),
+    headline: humanizeText(plan.headline || "상담, 뉴스, 장후 리포트를 순서대로 확인합니다."),
+    summary: humanizeText(plan.summary || "세 기능이 같은 방향인지 비교합니다."),
+    steps: steps.slice(0, 4).map((item) => ({
+      label: humanizeText(item?.label || "확인"),
+      result: humanizeText(item?.result || "확인 필요"),
+      tone: ["positive", "negative", "neutral", "mixed"].includes(item?.tone) ? item.tone : "neutral",
+      action: humanizeText(item?.action || "다음 종가와 거래량을 확인합니다."),
+      why: humanizeText(item?.why || "")
+    })).filter((item) => item.label)
+  };
+}
+
 function normalizeOllamaInsights(remote = {}) {
   const advice = remote.stockAdvice || {};
   const sentiment = remote.newsSentiment || {};
@@ -569,9 +586,11 @@ function normalizeOllamaInsights(remote = {}) {
       mood: humanizeText(report.mood || "선별 접근"),
       keyPoints: normalizeTextList(report.keyPoints),
       llmComment: humanizeText(report.llmComment || "장후 브리프에 로컬 LLM 코멘트를 붙일 수 있습니다."),
-      nextWatch: normalizeTextList(report.nextWatch)
+      nextWatch: normalizeTextList(report.nextWatch),
+      actionPlan: normalizeTextList(report.actionPlan)
     },
     crossFeatureConsensus: normalizeCrossFeatureConsensus(remote.crossFeatureConsensus),
+    threeFeaturePlan: normalizeThreeFeaturePlan(remote.threeFeaturePlan),
     decisionFactors: normalizeDecisionFactors(remote.decisionFactors),
     beginnerCoach: normalizeBeginnerCoach(remote.beginnerCoach),
     qdrant: remote.retrieval?.qdrant || null,

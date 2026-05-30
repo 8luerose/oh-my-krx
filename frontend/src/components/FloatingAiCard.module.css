@@ -452,6 +452,130 @@
   line-height: 1.25;
 }
 
+.threeFeaturePlan {
+  display: grid;
+  gap: var(--spacing-2);
+  border: 1px solid rgba(20, 184, 166, 0.22);
+  border-radius: var(--radius-md);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.78), rgba(13, 148, 136, 0.13));
+  padding: var(--spacing-3);
+}
+
+.threeFeatureHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+
+.threeFeatureHeader span,
+.threeFeatureHeader strong,
+.threeFeaturePlan > b,
+.threeFeaturePlan > p,
+.threeFeatureStep span,
+.threeFeatureStep strong,
+.threeFeatureStep p,
+.threeFeatureStep em {
+  min-width: 0;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.threeFeatureHeader span {
+  color: #99f6e4;
+  font-size: 0.74rem;
+  font-weight: 950;
+  line-height: 1.25;
+}
+
+.threeFeatureHeader strong {
+  flex: 0 0 auto;
+  border: 1px solid rgba(45, 212, 191, 0.18);
+  border-radius: var(--radius-round);
+  background: rgba(20, 184, 166, 0.12);
+  color: #ccfbf1;
+  font-size: 0.68rem;
+  font-weight: 950;
+  line-height: 1.2;
+  padding: 5px 8px;
+}
+
+.threeFeaturePlan > b {
+  color: var(--color-text-primary);
+  font-size: 0.84rem;
+  font-weight: 950;
+  line-height: 1.35;
+}
+
+.threeFeaturePlan > p {
+  color: var(--color-text-secondary);
+  font-size: 0.74rem;
+  line-height: 1.38;
+  margin: 0;
+}
+
+.threeFeatureStepGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.threeFeatureStep {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.4);
+  padding: 8px;
+}
+
+.threeFeatureStep div {
+  display: grid;
+  gap: 3px;
+}
+
+.threeFeatureStep span {
+  color: var(--color-text-tertiary);
+  font-size: 0.64rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.threeFeatureStep strong {
+  color: var(--color-text-primary);
+  font-size: 0.76rem;
+  font-weight: 950;
+  line-height: 1.25;
+}
+
+.threeFeatureStep p {
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.34;
+  margin: 0;
+}
+
+.threeFeatureStep em {
+  color: var(--color-text-tertiary);
+  font-size: 0.68rem;
+  font-style: normal;
+  line-height: 1.32;
+}
+
+.threeFeaturePositive {
+  border-color: rgba(34, 197, 94, 0.22);
+}
+
+.threeFeatureNegative {
+  border-color: rgba(239, 68, 68, 0.24);
+}
+
+.threeFeatureMixed {
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
 .sectionTitle {
   font-size: 0.85rem;
   color: var(--color-text-tertiary);
@@ -1559,6 +1683,7 @@
   .conditionGrid { grid-template-columns: 1fr; }
   .ollamaWorkflowGrid { grid-template-columns: 1fr; }
   .consensusSignals { grid-template-columns: 1fr; }
+  .threeFeatureStepGrid { grid-template-columns: 1fr; }
   .decisionFactorPanel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sentimentReasonGrid { grid-template-columns: 1fr; }
   .tradeTimingGrid { grid-template-columns: 1fr; }
@@ -1602,6 +1727,10 @@
   }
 
   .ollamaWorkflowGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .threeFeatureStepGrid {
     grid-template-columns: 1fr;
   }
 
