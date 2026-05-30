@@ -698,6 +698,9 @@
 }
 
 .forecastHudDetail {
+  left: calc(50% + 22px);
+  width: min(420px, 29vw);
+  min-width: 340px;
   max-height: min(484px, calc(100dvh - 188px));
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -1516,6 +1519,10 @@
 
   .aiFactorGrid {
     display: grid;
+  }
+
+  .detailPanelMode .zoneRail {
+    bottom: clamp(24px, 4vh, 42px);
   }
 }
 

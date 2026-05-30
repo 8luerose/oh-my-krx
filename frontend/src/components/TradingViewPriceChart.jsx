@@ -918,7 +918,7 @@ export default function TradingViewPriceChart({
   const visibleZoneSummaries = showDetailPanels ? zoneSummaries : zoneSummaries.slice(0, 3);
 
   return (
-    <div className={clsx(styles.stage, focusMode && styles.aiCardFocusMode)}>
+    <div className={clsx(styles.stage, focusMode && styles.aiCardFocusMode, showDetailPanels && styles.detailPanelMode)}>
       <div ref={containerRef} className={styles.chart} data-testid="tradingview-price-chart" />
       {chartError && <div className={styles.chartError}>{chartError}</div>}
       <div className={styles.brandBadge}>
