@@ -329,8 +329,7 @@ export default function TradingViewPriceChart({
   onRefreshAi,
   briefArchive,
   briefLoading = false,
-  onReloadBrief,
-  onOpenLearningModal
+  onReloadBrief
 }) {
   const containerRef = useRef(null);
   const chartApiRef = useRef(null);
@@ -1167,31 +1166,19 @@ export default function TradingViewPriceChart({
             </div>
             <div className={styles.legendCardGrid}>
               <div className={styles.legendGridItem}>
-                <span className={styles.legendItemLabel}>
-                  <CandlestickChart size={13} /> 캔들 (하루변동)
-                  <button type="button" className={styles.miniLearningBtn} onClick={() => onOpenLearningModal?.('캔들차트')}>💡 학습</button>
-                </span>
+                <span className={styles.legendItemLabel}><CandlestickChart size={13} /> 캔들 (시가와 종가)</span>
                 <strong>{formatCurrency(latest.close)}</strong>
               </div>
               <div className={styles.legendGridItem}>
-                <span className={styles.legendItemLabel}>
-                  <i className={styles.ma5LineColor} /> 5일선 (1주 평균)
-                  <button type="button" className={styles.miniLearningBtn} onClick={() => onOpenLearningModal?.('5일선')}>💡 학습</button>
-                </span>
+                <span className={styles.legendItemLabel}><i className={styles.ma5LineColor} /> 5일선 (1주 평균)</span>
                 <strong>{latest.ma5 ? formatCurrency(latest.ma5) : '계산 중'}</strong>
               </div>
               <div className={styles.legendGridItem}>
-                <span className={styles.legendItemLabel}>
-                  <i className={styles.ma20LineColor} /> 20일선 (1달 평균)
-                  <button type="button" className={styles.miniLearningBtn} onClick={() => onOpenLearningModal?.('20일선')}>💡 학습</button>
-                </span>
+                <span className={styles.legendItemLabel}><i className={styles.ma20LineColor} /> 20일선 (1달 평균)</span>
                 <strong>{latest.ma20 ? formatCurrency(latest.ma20) : '계산 중'}</strong>
               </div>
               <div className={styles.legendGridItem}>
-                <span className={styles.legendItemLabel}>
-                  <i className={styles.ma60LineColor} /> 60일선 (3달 평균)
-                  <button type="button" className={styles.miniLearningBtn} onClick={() => onOpenLearningModal?.('60일선')}>💡 학습</button>
-                </span>
+                <span className={styles.legendItemLabel}><i className={styles.ma60LineColor} /> 60일선 (3달 평균)</span>
                 <strong>{latest.ma60 ? formatCurrency(latest.ma60) : '계산 중'}</strong>
               </div>
             </div>
@@ -1392,21 +1379,8 @@ export default function TradingViewPriceChart({
               <strong>{Number.isFinite(chartMetrics.volumeRatio) ? `${Math.round(chartMetrics.volumeRatio)}%` : '확인 필요'}</strong>
             </div>
           </div>
-          <p className={styles.signalPanelFooterDesc}>
-            <span className={styles.descTermItem}>
-              20일선(1달평균) <strong>{formatCurrency(chartMetrics.ma20)}</strong>
-              <button type="button" className={styles.miniLearningBtn} onClick={() => onOpenLearningModal?.('20일선')}>💡 학습</button>
-            </span>
-            <span className={styles.descTermDivider}>·</span>
-            <span className={styles.descTermItem}>
-              지지선(하락방어) <strong>{formatCurrency(chartMetrics.support)}</strong>
-              <button type="button" className={styles.miniLearningBtn} onClick={() => onOpenLearningModal?.('지지선')}>💡 학습</button>
-            </span>
-            <span className={styles.descTermDivider}>·</span>
-            <span className={styles.descTermItem}>
-              저항선(돌파목표) <strong>{formatCurrency(chartMetrics.resistance)}</strong>
-              <button type="button" className={styles.miniLearningBtn} onClick={() => onOpenLearningModal?.('저항선')}>💡 학습</button>
-            </span>
+          <p>
+            20일선(1달평균) {formatCurrency(chartMetrics.ma20)} · 지지선(하락방어) {formatCurrency(chartMetrics.support)} · 저항선(돌파목표) {formatCurrency(chartMetrics.resistance)}
           </p>
         </aside>
       )}

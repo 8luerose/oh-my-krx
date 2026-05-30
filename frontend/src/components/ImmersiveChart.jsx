@@ -92,20 +92,22 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
   const [summaryArchive, setSummaryArchive] = useState(null);
   const [summaryArchiveLoading, setSummaryArchiveLoading] = useState(false);
 
+  // AI로 학습하기 용어 사전 모달 상태
+  const [learningModalOpen, setLearningModalOpen] = useState(false);
+  const [explanationModalOpen, setExplanationModalOpen] = useState(false);
+  const [selectedTerm, setSelectedTerm] = useState('');
+  const [learningExplanation, setLearningExplanation] = useState('');
+  const [loadingTerm, setLoadingTerm] = useState(false);
+
   // 브리프 달력 용 연월 및 단건 상세 데이터 상태 추가
   const [calendarDate, setCalendarDate] = useState(new Date(2026, 4, 1)); // 2026년 5월 기본값
   const [selectedBriefDate, setSelectedBriefDate] = useState(null);
   const [selectedBriefData, setSelectedBriefData] = useState(null);
   const [selectedBriefLoading, setSelectedBriefLoading] = useState(false);
 
-  // AI로 학습하기 용어 사전 모달 상태
-  const [learningModalOpen, setLearningModalOpen] = useState(false);
-  const [selectedTerm, setSelectedTerm] = useState('');
-  const [learningExplanation, setLearningExplanation] = useState('');
-  const [loadingTerm, setLoadingTerm] = useState(false);
-
   const handleAskAiForTerm = async (termName) => {
     setSelectedTerm(termName);
+    setExplanationModalOpen(true); // 2차 모달 즉시 팝업!
     setLoadingTerm(true);
     setLearningExplanation('');
     try {
