@@ -103,6 +103,31 @@
   white-space: normal;
 }
 
+.headerNextCheck {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 6px;
+  color: #dbeafe;
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.32;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.headerNextCheck span {
+  flex: 0 0 auto;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.13);
+  color: #86efac;
+  font-size: 0.66rem;
+  font-weight: 900;
+  line-height: 1;
+  padding: 4px 6px;
+}
+
 .miniOllamaStrip {
   display: flex;
   flex-wrap: wrap;
@@ -1680,6 +1705,73 @@
     height: 40px;
   }
 
+  .container:not([open]) {
+    max-height: 142px;
+  }
+
+  .container:not([open]) .header {
+    align-items: flex-start;
+    gap: 8px;
+    padding: 9px 11px;
+  }
+
+  .container:not([open]) .iconWrapper {
+    width: 34px;
+    height: 34px;
+  }
+
+  .container:not([open]) .direction {
+    font-size: 0.68rem;
+    margin-bottom: 1px;
+  }
+
+  .container:not([open]) .conclusion {
+    display: -webkit-box;
+    font-size: 0.76rem;
+    line-height: 1.22;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  .container:not([open]) .headerNextCheck {
+    display: -webkit-box;
+    font-size: 0.68rem;
+    line-height: 1.22;
+    margin-top: 3px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+
+  .container:not([open]) .headerNextCheck span {
+    display: inline-flex;
+    margin-right: 5px;
+    padding: 3px 5px;
+    vertical-align: middle;
+  }
+
+  .container:not([open]) .miniOllamaStrip {
+    flex-wrap: nowrap;
+    gap: 4px;
+    max-height: 21px;
+    overflow: hidden;
+  }
+
+  .container:not([open]) .miniOllamaStrip span {
+    flex: 0 1 auto;
+    max-width: 94px;
+    font-size: 0.62rem;
+    overflow: hidden;
+    padding: 3px 5px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .container:not([open]) .toggleBtn {
+    width: 28px;
+    height: 28px;
+  }
+
   .conditionGrid { grid-template-columns: 1fr; }
   .ollamaWorkflowGrid { grid-template-columns: 1fr; }
   .consensusSignals { grid-template-columns: 1fr; }
@@ -1771,7 +1863,23 @@
     font-size: 0.82rem;
     line-height: 1.28;
     -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  .container:not([open]) .headerNextCheck {
+    display: -webkit-box;
+    font-size: 0.72rem;
+    line-height: 1.25;
+    margin-top: 4px;
+    -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+
+  .container:not([open]) .headerNextCheck span {
+    display: inline-flex;
+    margin-right: 6px;
+    vertical-align: middle;
   }
 
   .container:not([open]) .miniOllamaStrip {
@@ -1808,7 +1916,11 @@
     font-size: 0.78rem;
     line-height: 1.26;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 1;
+  }
+
+  .container:not([open]) .headerNextCheck {
+    font-size: 0.68rem;
   }
 
   .container:not([open]) .miniOllamaStrip {

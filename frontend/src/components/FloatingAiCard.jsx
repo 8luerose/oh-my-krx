@@ -56,6 +56,12 @@ function compactStorageChip(storage) {
   return 'DB 저장';
 }
 
+function compactChipText(value, maxLength = 44) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  return text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;
+}
+
 function personalRiskChip(personalRisk) {
   if (!personalRisk) return '';
   if (!personalRisk.status || personalRisk.status === 'not_saved') return '내 기준 미저장';
@@ -176,22 +182,30 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
     : afterMarketReport.mood || '장후 리포트 확인 중';
   const reportSummary = ai.marketReport?.llmComment || afterMarketReport.llmComment || '장후 브리프와 시장 분위기 코멘트를 확인합니다.';
   const personalChip = personalRiskChip(personalRisk);
+  const tomorrowFocus = [
+    tradeTiming?.tomorrowChecklist?.[0],
+    afterMarketReport.tomorrowChecklist?.[0],
+    ai.marketReport?.tomorrowChecklist?.[0],
+    stockAdvice.nextAction,
+    ai.checklist?.[0]
+  ].find(Boolean);
+  const qdrantChip = qdrant?.enabled && !qdrant?.skipped
+    ? `Qdrant 근거 ${qdrant.retrievedCount || 0}개`
+    : qdrant?.asyncUpsertScheduled
+      ? 'Qdrant 저장 중'
+      : qdrant?.asyncUpsertDeduped ? 'Qdrant 저장 대기' : '';
   const workflowChips = [
-    `1 지금 사도 되나요? ${adviceDecision}`,
-    personalChip,
-    insightRuntimeLabel,
-    qdrant?.enabled && !qdrant?.skipped
-      ? `Qdrant 근거 ${qdrant.retrievedCount || 0}개`
-      : qdrant?.asyncUpsertScheduled
-        ? 'Qdrant 저장 중'
-        : qdrant?.asyncUpsertDeduped ? 'Qdrant 저장 대기' : '',
-    `2 뉴스 감성 ${compactProbabilityPair(nextTradingDay)}`,
-    `3 장후 요약 ${ai.marketReport?.mood || afterMarketReport.mood || '확인 중'}`,
+    `1 상담 ${adviceDecision}`,
+    `2 뉴스 ${compactProbabilityPair(nextTradingDay)}`,
+    `3 장후 ${ai.marketReport?.mood || afterMarketReport.mood || '확인 중'}`,
     consensus?.agreement ? `종합 ${consensus.agreement}` : '',
+    personalChip,
+    qdrantChip,
     reportRuntimeLabelText,
     compactStorageChip(insights?.storage || ai.storage),
     compactStorageChip(ai.marketReport?.storage)
   ].filter(Boolean);
+  const headerWorkflowChips = workflowChips.slice(0, 5);
   const marketDashboard = ai.marketReport?.marketDashboard || null;
   const topGainer = marketDashboard?.topGainer || null;
   const topLoser = marketDashboard?.topLoser || null;
@@ -232,9 +246,16 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
         <div className={styles.summaryInfo}>
           <span className={styles.direction}>{ai.direction || '분석 중'}</span>
           <p className={styles.conclusion}>{ai.conclusion || '현재 종목의 주요 흐름을 파악하고 있습니다.'}</p>
-          {workflowChips.length > 0 && (
+          {tomorrowFocus && (
+            <p className={styles.headerNextCheck}>
+              <span>내일 체크</span>
+              {' '}
+              {compactChipText(tomorrowFocus, 74)}
+            </p>
+          )}
+          {headerWorkflowChips.length > 0 && (
             <div className={styles.miniOllamaStrip} aria-label="Ollama 핵심 인사이트">
-              {workflowChips.slice(0, 7).map((item) => (
+              {headerWorkflowChips.map((item) => (
                 <span key={item}>{item}</span>
               ))}
             </div>
