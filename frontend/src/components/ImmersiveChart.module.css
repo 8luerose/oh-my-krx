@@ -5,14 +5,14 @@
   display: flex;
   flex-direction: column;
   background: var(--color-bg-base);
+  overflow: hidden;
 }
 
 .chartWrapper {
-  position: absolute;
-  top: 0;
-  left: 0;
+  position: relative;
+  flex: 1;
   width: 100%;
-  height: 100%;
+  height: calc(100% - 76px);
   z-index: 1;
 }
 
@@ -66,37 +66,39 @@
   min-width: 240px;
 }
 
-/* Top Toss Unified Toolbar */
+/* Top Toss Unified Toolbar (스크롤 겹침 완전 차단형 고정 상단바) */
 .topToolbar {
-  position: absolute;
-  top: 24px;
-  left: 32px;
-  right: 32px;
+  position: relative;
+  width: 100%;
+  height: 76px;
+  background: rgba(10, 13, 20, 0.96);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   gap: var(--spacing-4);
   justify-content: space-between;
   align-items: center;
-  z-index: 1300;
-  pointer-events: none;
+  z-index: 1500;
+  padding: 0 32px;
+  pointer-events: auto;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
 }
 
 /* Interval Pill Selector */
 .intervalGroup {
   flex: 0 0 auto;
   display: flex;
-  background: rgba(19, 24, 36, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-round);
   padding: 4px;
-  pointer-events: auto;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .intervalBtn {
-  padding: 8px 18px;
-  font-size: 0.88rem;
+  padding: 6px 16px;
+  font-size: 0.82rem;
   font-weight: 750;
   color: var(--color-text-secondary);
   border-radius: var(--radius-round);
@@ -120,11 +122,81 @@
 .intervalStatus {
   display: inline-flex;
   align-items: center;
-  padding: 0 12px;
+  padding: 0 10px;
   color: var(--color-text-tertiary);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 800;
   border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Premium Dynamic Search Bar */
+.quickSearchForm {
+  flex: 0 1 360px;
+  min-width: 240px;
+  display: grid;
+  grid-template-columns: auto minmax(100px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-round);
+  background: rgba(255, 255, 255, 0.02);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+  padding: 2px 4px 2px 14px;
+  transition: all var(--transition-fast);
+}
+
+.quickSearchForm:focus-within {
+  border-color: var(--color-accent);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.quickSearchForm label {
+  color: var(--color-text-secondary);
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.quickSearchForm input {
+  min-width: 0;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 0.88rem;
+  font-weight: 800;
+  outline: none;
+}
+
+.quickSearchForm input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.quickSearchForm button {
+  height: 32px;
+  border-radius: var(--radius-round);
+  background: var(--color-accent);
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 0 14px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(49, 130, 246, 0.3);
+  transition: all var(--transition-fast);
+}
+
+.quickSearchForm button:hover {
+  filter: brightness(1.1);
+}
+
+.quickSearchForm em {
+  grid-column: 1 / -1;
+  color: var(--color-positive);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 800;
+  padding-left: 4px;
 }
 
 
@@ -505,3 +577,125 @@
     font-size: 3.5rem;
   }
 }
+
+/* Toss Style Grid Calendar Component */
+.calendarMonthSelector {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: var(--spacing-2) 0;
+  background: rgba(0, 0, 0, 0.2);
+  padding: var(--spacing-2) var(--spacing-4);
+  border-radius: var(--radius-round);
+}
+
+.monthNavBtn {
+  background: transparent;
+  border: 0;
+  color: var(--color-text-secondary);
+  font-size: 1.1rem;
+  font-weight: 900;
+  cursor: pointer;
+  padding: 4px 12px;
+  border-radius: var(--radius-round);
+  transition: all var(--transition-fast);
+}
+
+.monthNavBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-primary);
+}
+
+.calendarMonthSelector strong {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: var(--color-text-primary);
+}
+
+.calendarNoticeDesc {
+  font-size: 0.76rem;
+  color: var(--color-text-tertiary);
+  line-height: 1.45;
+  margin: 6px 0 12px 0;
+}
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+  background: rgba(0, 0, 0, 0.15);
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.calendarGridHeaderItem {
+  text-align: center;
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: var(--color-text-tertiary);
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.calendarDayEmpty {
+  height: 34px;
+}
+
+.calendarDayBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-round);
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 0.85rem;
+  font-weight: 800;
+  transition: all var(--transition-fast);
+  cursor: default;
+}
+
+.calendarDayHasBrief {
+  background: rgba(49, 130, 246, 0.06);
+  border: 1px solid rgba(49, 130, 246, 0.15);
+  color: var(--color-accent);
+  cursor: pointer;
+  position: relative;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.calendarDayHasBrief:hover {
+  background: var(--color-accent);
+  color: var(--color-text-primary) !important;
+  box-shadow: 0 4px 12px rgba(49, 130, 246, 0.4);
+  transform: translateY(-1px);
+}
+
+.calendarDayHasBrief:active {
+  transform: scale(0.92);
+}
+
+.calendarDayToday {
+  background: var(--color-accent) !important;
+  color: var(--color-text-primary) !important;
+  box-shadow: 0 4px 12px rgba(49, 130, 246, 0.4);
+  border-color: var(--color-accent) !important;
+}
+
+.calendarEmpty {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--color-text-tertiary);
+  padding: 32px 0;
+}
+
+/* dropdownRight 짤림 방지 보정 */
+.dropdownRight {
+  right: 0 !important;
+  left: auto !important;
+  transform-origin: top right !important;
+}
+

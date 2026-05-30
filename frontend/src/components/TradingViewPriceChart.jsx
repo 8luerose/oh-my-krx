@@ -1133,9 +1133,9 @@ export default function TradingViewPriceChart({
       <div className={styles.chartPane}>
         <div ref={containerRef} className={styles.chart} data-testid="tradingview-price-chart" />
         <div className={styles.chartLineLegend} aria-label="차트 선 설명">
-          <span><i className={styles.ma20Dot} />파란 점선 20일 평균</span>
-          <span><i className={styles.ma60Dot} />노란 점선 60일 평균</span>
-          <span><i className={styles.volumeDot} />아래 막대 거래량</span>
+          <span><i className={styles.ma20Dot} />파란 점선 20일선 (1달 평균)</span>
+          <span><i className={styles.ma60Dot} />노란 점선 60일선 (3달 평균)</span>
+          <span><i className={styles.volumeDot} />아래 막대 거래량 (매매 수량)</span>
         </div>
         {chartError && <div className={styles.chartError}>{chartError}</div>}
       </div>
@@ -1166,19 +1166,19 @@ export default function TradingViewPriceChart({
             </div>
             <div className={styles.legendCardGrid}>
               <div className={styles.legendGridItem}>
-                <span className={styles.legendItemLabel}><CandlestickChart size={13} /> 캔들</span>
+                <span className={styles.legendItemLabel}><CandlestickChart size={13} /> 캔들 (시가와 종가)</span>
                 <strong>{formatCurrency(latest.close)}</strong>
               </div>
               <div className={styles.legendGridItem}>
-                <span className={styles.legendItemLabel}><i className={styles.ma5LineColor} /> 5일선</span>
+                <span className={styles.legendItemLabel}><i className={styles.ma5LineColor} /> 5일선 (1주 평균)</span>
                 <strong>{latest.ma5 ? formatCurrency(latest.ma5) : '계산 중'}</strong>
               </div>
               <div className={styles.legendGridItem}>
-                <span className={styles.legendItemLabel}><i className={styles.ma20LineColor} /> 20일선</span>
+                <span className={styles.legendItemLabel}><i className={styles.ma20LineColor} /> 20일선 (1달 평균)</span>
                 <strong>{latest.ma20 ? formatCurrency(latest.ma20) : '계산 중'}</strong>
               </div>
               <div className={styles.legendGridItem}>
-                <span className={styles.legendItemLabel}><i className={styles.ma60LineColor} /> 60일선</span>
+                <span className={styles.legendItemLabel}><i className={styles.ma60LineColor} /> 60일선 (3달 평균)</span>
                 <strong>{latest.ma60 ? formatCurrency(latest.ma60) : '계산 중'}</strong>
               </div>
             </div>
@@ -1354,33 +1354,33 @@ export default function TradingViewPriceChart({
       {chartMetrics && (
         <aside className={styles.signalPanel} aria-label="현재 차트 핵심 신호">
           <div className={styles.signalHeader}>
-            <span>현재 차트 핵심</span>
+            <span>현재 차트 핵심 (주요 흐름)</span>
             <strong>{chartMetrics.focus}</strong>
           </div>
           <div className={styles.signalGrid}>
             <div>
-              <span>{getPeriodLabel(interval)} 대비</span>
+              <span>{getPeriodLabel(interval)} 대비 (단기 변동)</span>
               <strong className={Number(chartMetrics.changeRate) >= 0 ? styles.up : styles.down}>
                 {formatPercent(chartMetrics.changeRate)}
               </strong>
             </div>
             <div>
-              <span>20일선 거리</span>
+              <span>20일선 거리 (기준선 이탈)</span>
               <strong className={chartMetrics.aboveMa20 ? styles.up : styles.down}>
                 {formatPercent(chartMetrics.ma20Distance)}
               </strong>
             </div>
             <div>
-              <span>저항선까지</span>
+              <span>저항선까지 (상승 목표)</span>
               <strong>{formatPercent(chartMetrics.resistanceDistance)}</strong>
             </div>
             <div>
-              <span>거래량 강도</span>
+              <span>거래량 강도 (매매 활성)</span>
               <strong>{Number.isFinite(chartMetrics.volumeRatio) ? `${Math.round(chartMetrics.volumeRatio)}%` : '확인 필요'}</strong>
             </div>
           </div>
           <p>
-            20일선 {formatCurrency(chartMetrics.ma20)} · 지지선 {formatCurrency(chartMetrics.support)} · 저항선 {formatCurrency(chartMetrics.resistance)}
+            20일선 (기준선) {formatCurrency(chartMetrics.ma20)} · 지지선 (바닥선) {formatCurrency(chartMetrics.support)} · 저항선 (천장선) {formatCurrency(chartMetrics.resistance)}
           </p>
         </aside>
       )}

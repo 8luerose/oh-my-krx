@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { RefreshCw } from 'lucide-react';
 import TradingViewPriceChart from './TradingViewPriceChart';
-import { loadSummaryArchive } from '../services/apiClient';
+import { loadSummaryArchive, loadSummaryByDate } from '../services/apiClient';
 import styles from './ImmersiveChart.module.css';
 
 function formatCurrency(value) {
@@ -90,6 +91,12 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
   const [stockCodeError, setStockCodeError] = useState('');
   const [summaryArchive, setSummaryArchive] = useState(null);
   const [summaryArchiveLoading, setSummaryArchiveLoading] = useState(false);
+
+  // 브리프 달력 용 연월 및 단건 상세 데이터 상태 추가
+  const [calendarDate, setCalendarDate] = useState(new Date(2026, 4, 1)); // 2026년 5월 기본값
+  const [selectedBriefDate, setSelectedBriefDate] = useState(null);
+  const [selectedBriefData, setSelectedBriefData] = useState(null);
+  const [selectedBriefLoading, setSelectedBriefLoading] = useState(false);
 
   useEffect(() => {
     setStockCodeInput(stock?.code || '');
@@ -561,6 +568,50 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
     setActivePanel('none');
   };
 
+  // 캘린더 그리드 계산 헬퍼
+  const calendarDays = useMemo(() => {
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    
+    const tempDays = [];
+    // 빈 칸 채우기 (첫 주 시작 전 요일)
+    for (let i = 0; i < firstDayIndex; i++) {
+      tempDays.push(null);
+    }
+    // 실제 날짜 채우기
+    for (let day = 1; day <= totalDays; day++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      tempDays.push({ day, dateStr });
+    }
+    return tempDays;
+  }, [calendarDate]);
+
+  const handlePrevMonth = () => {
+    setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1));
+  };
+
+  const handleCalendarDateClick = async (dateStr) => {
+    setSelectedBriefDate(dateStr);
+    setSelectedBriefLoading(true);
+    try {
+      const data = await loadSummaryByDate(dateStr);
+      setSelectedBriefData(data);
+    } catch (error) {
+      setSelectedBriefData({
+        date: dateStr,
+        lines: ["해당 날짜의 브리프 상세 데이터를 백엔드에서 불러오지 못했습니다.", "날짜를 다시 확인하거나 관리자에게 문의하세요."]
+      });
+    } finally {
+      setSelectedBriefLoading(false);
+    }
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.chartWrapper}>
@@ -607,6 +658,24 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
             {intervalLabel}
           </span>
         </div>
+
+        <form className={styles.quickSearchForm} onSubmit={handleStockCodeSubmit} aria-label="기업 검색">
+          <label htmlFor="quick-stock-search">기업 검색</label>
+          <input
+            id="quick-stock-search"
+            value={stockCodeInput}
+            placeholder="삼성전자 또는 005930"
+            autoComplete="off"
+            aria-invalid={Boolean(stockCodeError)}
+            aria-describedby={stockCodeError ? 'quick-stock-search-error' : undefined}
+            onChange={(event) => {
+              setStockCodeInput(event.target.value);
+              setStockCodeError('');
+            }}
+          />
+          <button type="submit">검색</button>
+          {stockCodeError && <em id="quick-stock-search-error">{stockCodeError}</em>}
+        </form>
 
         <div className={styles.actionGroup}>
           <div className={styles.actionItem}>
@@ -749,30 +818,49 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
               <div className={clsx(styles.dropdownPanel, styles.dropdownRight)} data-testid="brief-calendar-panel" aria-label="pykrx 브리프 달력">
                 <div className={styles.calendarPanelHeader}>
                   <span>pykrx 기준 브리프</span>
-                  <strong>{latestBrief?.date || stock?.asOf || '최근 거래일'}</strong>
-                  <p>거래소 데이터를 기준으로 저장된 날짜를 보여줍니다. 날짜를 고르면 해당 브리프의 상승, 하락 대표 종목을 빠르게 확인할 수 있습니다.</p>
+                  <div className={styles.calendarMonthSelector}>
+                    <button type="button" onClick={handlePrevMonth} className={styles.monthNavBtn}>&lt;</button>
+                    <strong>{calendarDate.getFullYear()}년 {calendarDate.getMonth() + 1}월</strong>
+                    <button type="button" onClick={handleNextMonth} className={styles.monthNavBtn}>&gt;</button>
+                  </div>
+                  <p className={styles.calendarNoticeDesc}>
+                    달력에서 채워진 파란 동그라미 날짜는 저장된 시장 브리프 리포트가 있는 날입니다. 날짜를 클릭하면 상세 리포트가 팝업됩니다.
+                  </p>
                 </div>
-                {summaryArchiveLoading && <p className={styles.calendarEmpty}>브리프 날짜를 불러오고 있습니다.</p>}
-                {!summaryArchiveLoading && summaryDates.length === 0 && (
-                  <p className={styles.calendarEmpty}>저장된 브리프 날짜가 아직 없습니다.</p>
-                )}
-                {!summaryArchiveLoading && summaryDates.length > 0 && (
-                  <div className={styles.calendarDateGrid}>
-                    {summaryDates.map((item) => (
-                      <article key={item.date || item.effectiveDate}>
-                        <b>{item.date || item.effectiveDate}</b>
-                        <span>상승 대표: {item.topGainer || item.kospiTopGainer || '확인 필요'}</span>
-                        <span>하락 대표: {item.topLoser || item.kospiTopLoser || '확인 필요'}</span>
-                      </article>
+                {summaryArchiveLoading && <p className={styles.calendarEmpty}>브리프 데이터를 로드하고 있습니다.</p>}
+                
+                {!summaryArchiveLoading && (
+                  <div className={styles.calendarGrid}>
+                    {['일', '월', '화', '수', '목', '금', '토'].map((d) => (
+                      <div key={d} className={styles.calendarGridHeaderItem}>{d}</div>
                     ))}
+                    {calendarDays.map((item, idx) => {
+                      if (!item) return <div key={`empty-${idx}`} className={styles.calendarDayEmpty} />;
+                      const hasBrief = summaryArchive?.list?.some((b) => b.date === item.dateStr) || (latestBrief?.date === item.dateStr);
+                      return (
+                        <button
+                          type="button"
+                          key={item.dateStr}
+                          onClick={() => hasBrief && handleCalendarDateClick(item.dateStr)}
+                          className={clsx(
+                            styles.calendarDayBtn,
+                            hasBrief && styles.calendarDayHasBrief,
+                            item.dateStr === (latestBrief?.date) && styles.calendarDayToday
+                          )}
+                          disabled={!hasBrief}
+                          aria-label={`${item.dateStr} 브리프 보기`}
+                        >
+                          <span>{item.day}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
                 {latestBrief && (
                   <div className={styles.calendarLatestBox}>
-                    <b>최근 브리프 핵심</b>
-                    <span>상승 대표 {latestBrief.topGainer || latestBrief.kospiTopGainer || '확인 필요'}</span>
-                    <span>하락 대표 {latestBrief.topLoser || latestBrief.kospiTopLoser || '확인 필요'}</span>
-                    <span>많이 언급된 종목 {latestBrief.mostMentioned || '확인 필요'}</span>
+                    <b>최근 브리프 요약 ({latestBrief.date})</b>
+                    <span>상승 대표: {latestBrief.topGainer || latestBrief.kospiTopGainer || '확인 필요'}</span>
+                    <span>하락 대표: {latestBrief.topLoser || latestBrief.kospiTopLoser || '확인 필요'}</span>
                   </div>
                 )}
               </div>
@@ -789,6 +877,37 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
           {stock.changeRate}
         </div>
       </div>
+      {/* 캘린더 날짜 클릭 시 오픈되는 시장 브리프 모달창 포탈 */}
+      {selectedBriefDate && typeof document !== 'undefined' && createPortal((
+        <div className={styles.briefModalLayer} role="presentation" onClick={() => setSelectedBriefDate(null)}>
+          <section
+            className={styles.briefModal}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${selectedBriefDate} 시장 브리프 상세`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={styles.briefModalHeader}>
+              <div>
+                <span>{selectedBriefDate} 시장 리포트</span>
+                <strong>일간 종합 시장 브리프</strong>
+              </div>
+              <button type="button" onClick={() => setSelectedBriefDate(null)} aria-label="브리프 닫기">닫기</button>
+            </div>
+            <pre className={styles.briefTextBlock}>
+              {selectedBriefLoading 
+                ? '백엔드로부터 시장 브리프 리포트를 불러오는 중입니다...' 
+                : selectedBriefData?.lines?.length 
+                  ? selectedBriefData.lines.join('\n') 
+                  : selectedBriefData?.content 
+                    || '해당 날짜의 리포트 본문 텍스트가 존재하지 않습니다.'}
+            </pre>
+            <p className={styles.briefModalNote}>
+              이 브리프는 pykrx 거래소 OHLCV 데이터 및 네이버 종목 토론 게시물 언급 빈도를 기반으로 산출된 백엔드 리포트입니다.
+            </p>
+          </section>
+        </div>
+      ), document.body)}
     </div>
   );
 }

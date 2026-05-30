@@ -1059,7 +1059,7 @@ export async function loadSummaryArchive() {
   try {
     const [latest, list] = await Promise.all([
       requestJson("/api/summaries/latest"),
-      requestJson("/api/summaries?from=2026-05-01&to=2026-05-05")
+      requestJson("/api/summaries?from=2026-05-01&to=2026-05-31")
     ]);
     return { latest, list: Array.isArray(list) ? list : [], source: "백엔드 API" };
   } catch {
@@ -1203,4 +1203,12 @@ export async function runAdminAction(action, adminKey) {
   }
   if (action === "verify") return requestJson(`/api/summaries/${fallbackWorkspace.asOf}/verification/krx`, { headers });
   return requestJson("/api/summaries/latest", { headers });
+}
+
+export async function loadSummaryByDate(date) {
+  const safeDate = String(date || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(safeDate)) {
+    throw new Error("올바르지 않은 날짜 형식입니다.");
+  }
+  return requestJson(`/api/summaries/${safeDate}`);
 }
