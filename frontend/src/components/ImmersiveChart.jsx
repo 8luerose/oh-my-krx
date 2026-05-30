@@ -56,6 +56,14 @@ function newsEffectTone(effect = '') {
   return 'neutral';
 }
 
+function marketMoodTone(value = '') {
+  const text = String(value || '');
+  if (text.includes('위험') || text.includes('방어') || text.includes('하락')) return 'risk';
+  if (text.includes('관심') || text.includes('확대') || text.includes('상승')) return 'positive';
+  if (text.includes('준비') || text.includes('확인')) return 'loading';
+  return 'neutral';
+}
+
 export default function ImmersiveChart({ stock, chart, zones, events, ai, indicatorSnapshot, decisionSummary, interval, onChangeInterval, stockOptions = [], onChangeStock, learningMode, onTermClick, aiCardExpanded = false, onPanelOpenChange }) {
   const toolbarRef = useRef(null);
   const [activePanel, setActivePanel] = useState('none'); // 'none', 'stocks', 'guide', 'ai'
@@ -301,6 +309,50 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
     };
   }, [ai, events]);
 
+  const stockPanelMarketReport = useMemo(() => {
+    const insights = ai?.ollamaInsights;
+    const report = ai?.marketReport || insights?.afterMarketReport || null;
+    const status = ai?.marketReportStatus || (report ? 'ready' : 'waiting');
+    const loading = status === 'loading' || !report;
+    const dashboard = report?.marketDashboard || {};
+    const topGainer = dashboard.topGainer || {};
+    const topLoser = dashboard.topLoser || {};
+    const gainerText = topGainer?.name
+      ? `${topGainer.name}${Number.isFinite(Number(topGainer.rate)) ? ` ${Number(topGainer.rate).toFixed(1)}%` : ''}`
+      : '상승 리더 확인 중';
+    const loserText = topLoser?.name
+      ? `${topLoser.name}${Number.isFinite(Number(topLoser.rate)) ? ` ${Number(topLoser.rate).toFixed(1)}%` : ''}`
+      : '하락 리더 확인 중';
+    const mood = compactPanelText(report?.mood, loading ? '장후 리포트 확인 중' : '선별 접근', 28);
+    const bias = compactPanelText(report?.marketBias, loading ? '시장 방향 확인 중' : '중립', 28);
+    const tone = marketMoodTone(`${mood} ${bias}`);
+    const action = firstPanelItem(
+      report?.actionPlan || report?.nextWatch,
+      loading
+        ? '저장된 장후 브리프를 확인한 뒤 오늘 시장 분위기를 종목 판단에 연결합니다.'
+        : report?.llmComment || '다음 거래일 시초가, 거래량, 20일선 유지 여부를 확인합니다.',
+      108
+    );
+    const stockImpact = tone === 'risk'
+      ? `${stock?.name || '선택 종목'} 기준으로는 추격보다 지지선·20일선 이탈 기준을 먼저 정해야 합니다.`
+      : tone === 'positive'
+        ? `${stock?.name || '선택 종목'} 기준으로는 시장 관심이 거래량으로 이어지는지 확인한 뒤 검토합니다.`
+        : `${stock?.name || '선택 종목'} 기준으로는 시장 리더와 다른 움직임인지 비교하며 선별 접근합니다.`;
+
+    return {
+      mood,
+      bias,
+      tone,
+      summary: compactPanelText(report?.sessionBrief || report?.llmComment, loading ? '장후 시장 요약을 불러오는 중입니다.' : '장후 시장 흐름을 종목 판단에 연결합니다.', 116),
+      stockImpact,
+      action,
+      gainerText,
+      loserText,
+      storageLabel: report?.storage?.cached ? 'DB 저장본 재사용' : report?.storage?.saved ? 'DB 저장' : loading ? '저장본 확인 중' : '리포트 확인',
+      basisDate: report?.basisDate || report?.marketDashboard?.basisDate || ''
+    };
+  }, [ai, stock?.name]);
+
   if (!chartData || chartData.length === 0) return null;
 
   const latestPoint = chartData[chartData.length - 1];
@@ -511,6 +563,34 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
                       <span>{stockPanelNews.confidence}</span>
                     </div>
                     <p>{stockPanelNews.action}</p>
+                  </div>
+                  <div
+                    className={clsx(
+                      styles.stockMarketSnapshot,
+                      stockPanelMarketReport.tone === 'risk' && styles.stockMarketRisk,
+                      stockPanelMarketReport.tone === 'positive' && styles.stockMarketPositive,
+                      stockPanelMarketReport.tone === 'loading' && styles.stockMarketLoading
+                    )}
+                    aria-label="장후 시장 리포트가 종목 판단에 주는 영향"
+                  >
+                    <div className={styles.stockMarketTopline}>
+                      <span>오늘 시장 분위기가 내 종목에 주는 영향</span>
+                      <strong>{stockPanelMarketReport.mood} · {stockPanelMarketReport.bias}</strong>
+                    </div>
+                    <p>{stockPanelMarketReport.summary}</p>
+                    <div className={styles.stockMarketLeaderGrid}>
+                      <span>상승 리더 <b>{stockPanelMarketReport.gainerText}</b></span>
+                      <span>하락 리더 <b>{stockPanelMarketReport.loserText}</b></span>
+                    </div>
+                    <div className={styles.stockMarketImpact}>
+                      <b>내 종목 적용</b>
+                      <span>{stockPanelMarketReport.stockImpact}</span>
+                    </div>
+                    <div className={styles.stockMarketFooter}>
+                      <span>{stockPanelMarketReport.storageLabel}</span>
+                      {stockPanelMarketReport.basisDate && <span>기준 {stockPanelMarketReport.basisDate}</span>}
+                    </div>
+                    <em>{stockPanelMarketReport.action}</em>
                   </div>
                   <div className={styles.aiPipelinePanel} aria-label="종목 선택 후 Ollama 실행 흐름">
                     <b>종목을 고르면 AI가 바로 확인하는 3가지</b>

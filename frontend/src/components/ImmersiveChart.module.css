@@ -716,6 +716,164 @@
   line-height: 1.38;
 }
 
+.stockMarketSnapshot {
+  display: grid;
+  gap: 8px;
+  margin-top: var(--spacing-3);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: 8px;
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(6, 78, 59, 0.16));
+  padding: 10px;
+}
+
+.stockMarketRisk {
+  border-color: rgba(239, 68, 68, 0.26);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(127, 29, 29, 0.16));
+}
+
+.stockMarketPositive {
+  border-color: rgba(34, 197, 94, 0.26);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(21, 128, 61, 0.16));
+}
+
+.stockMarketLoading {
+  border-color: rgba(96, 165, 250, 0.25);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(37, 99, 235, 0.13));
+}
+
+.stockMarketTopline {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.stockMarketTopline span,
+.stockMarketTopline strong,
+.stockMarketSnapshot p,
+.stockMarketLeaderGrid span,
+.stockMarketImpact b,
+.stockMarketImpact span,
+.stockMarketFooter span,
+.stockMarketSnapshot em {
+  min-width: 0;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.stockMarketTopline span {
+  color: #bbf7d0;
+  font-size: 0.76rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.stockMarketRisk .stockMarketTopline span {
+  color: #fecaca;
+}
+
+.stockMarketLoading .stockMarketTopline span {
+  color: #bfdbfe;
+}
+
+.stockMarketTopline strong {
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  font-weight: 950;
+  line-height: 1.3;
+}
+
+.stockMarketSnapshot p,
+.stockMarketSnapshot em {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 720;
+  line-height: 1.38;
+}
+
+.stockMarketLeaderGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.stockMarketLeaderGrid span {
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 7px;
+  background: rgba(15, 23, 42, 0.36);
+  color: rgba(226, 232, 240, 0.58);
+  font-size: 0.66rem;
+  font-weight: 850;
+  line-height: 1.2;
+  padding: 8px;
+}
+
+.stockMarketLeaderGrid b {
+  color: var(--color-text-primary);
+  font-size: 0.75rem;
+  font-weight: 950;
+  line-height: 1.25;
+}
+
+.stockMarketImpact {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid rgba(34, 197, 94, 0.14);
+  border-radius: 7px;
+  background: rgba(6, 78, 59, 0.14);
+  padding: 8px;
+}
+
+.stockMarketRisk .stockMarketImpact {
+  border-color: rgba(239, 68, 68, 0.16);
+  background: rgba(127, 29, 29, 0.14);
+}
+
+.stockMarketImpact b {
+  color: #d1fae5;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.stockMarketRisk .stockMarketImpact b {
+  color: #fecaca;
+}
+
+.stockMarketImpact span {
+  color: var(--color-text-primary);
+  font-size: 0.76rem;
+  font-weight: 780;
+  line-height: 1.38;
+}
+
+.stockMarketFooter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.stockMarketFooter span {
+  border: 1px solid rgba(34, 197, 94, 0.15);
+  border-radius: 999px;
+  background: rgba(6, 78, 59, 0.15);
+  color: #bbf7d0;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1.2;
+  padding: 4px 7px;
+}
+
+.stockMarketRisk .stockMarketFooter span {
+  border-color: rgba(239, 68, 68, 0.16);
+  background: rgba(127, 29, 29, 0.15);
+  color: #fecaca;
+}
+
 .aiPipelinePanel {
   display: grid;
   gap: 8px;
@@ -1091,6 +1249,19 @@
 
   .stockNewsHeadline b {
     font-size: 0.74rem;
+  }
+
+  .stockMarketSnapshot {
+    gap: 8px;
+    padding: 9px;
+  }
+
+  .stockMarketTopline strong {
+    font-size: 0.82rem;
+  }
+
+  .stockMarketLeaderGrid {
+    grid-template-columns: 1fr;
   }
 
   .aiPipelinePanel {
