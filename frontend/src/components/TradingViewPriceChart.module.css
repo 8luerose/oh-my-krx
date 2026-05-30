@@ -1564,7 +1564,7 @@
   .signalPanel {
     left: 12px;
     right: 12px;
-    top: 112px;
+    top: 136px;
     width: auto;
     gap: 8px;
     padding: 10px;
@@ -1615,7 +1615,7 @@
     position: absolute;
     left: 12px;
     right: 12px;
-    top: 208px;
+    top: 234px;
     z-index: 4;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
@@ -1627,7 +1627,7 @@
   .mobilePortfolioCta {
     position: absolute;
     right: 12px;
-    top: 284px;
+    top: 318px;
     z-index: 5;
     display: inline-flex;
     align-items: center;
@@ -1656,9 +1656,11 @@
     gap: 3px;
     min-width: 0;
     min-height: 50px;
+    max-height: 78px;
     border: 1px solid rgba(96, 165, 250, 0.18);
     border-radius: 8px;
     background: rgba(8, 13, 24, 0.62);
+    overflow: hidden;
     padding: 7px;
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
@@ -1679,10 +1681,14 @@
   }
 
   .mobileChartLens strong {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
     color: #f8fafc;
     font-size: 0.7rem;
     font-weight: 920;
     line-height: 1.24;
+    overflow: hidden;
   }
 
   .zoneRail {
