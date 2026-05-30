@@ -92,6 +92,13 @@ function zoneMeta(type) {
   return { role: '대기', action: '방향 확인' };
 }
 
+function simpleZoneLabel(zone) {
+  if (zone.type === 'buy') return '매수 검토 기준';
+  if (zone.type === 'sell') return '매도 검토 기준';
+  if (zone.type === 'risk') return '손실 방어 기준';
+  return '관망 기준';
+}
+
 function zoneRange(zone) {
   return parsePriceRange(zone?.price);
 }
@@ -113,15 +120,15 @@ function zoneRelation(zone, currentPrice) {
   const hasFrom = Number.isFinite(from);
   const hasTo = Number.isFinite(to);
   if ((!hasFrom || close >= from) && (!hasTo || close <= to)) {
-    return { label: '현재 위치', tone: 'inside', distance: 0 };
+    return { label: '현재 이 구간 안', tone: 'inside', distance: 0 };
   }
   if (hasFrom && close < from) {
     const distance = ((from - close) / close) * 100;
-    return { label: `진입까지 ${formatPercent(distance)}`, tone: 'below', distance };
+    return { label: `기준까지 ${formatPercent(distance)}`, tone: 'below', distance };
   }
   if (hasTo && close > to) {
     const distance = ((close - to) / to) * 100;
-    return { label: `상단 초과 ${formatPercent(distance)}`, tone: 'above', distance };
+    return { label: `기준보다 ${formatPercent(distance)} 높음`, tone: 'above', distance };
   }
   return { label: '범위 확인', tone: 'neutral', distance: Number.POSITIVE_INFINITY };
 }
@@ -240,7 +247,8 @@ export default function TradingViewPriceChart({
   learningMode,
   onTermClick,
   focusMode = false,
-  onOpenPortfolio
+  onOpenPortfolio,
+  onRefreshAi
 }) {
   const containerRef = useRef(null);
   const chartApiRef = useRef(null);
@@ -982,6 +990,25 @@ export default function TradingViewPriceChart({
 
   const latest = prepared.rows[prepared.rows.length - 1];
   const visibleZoneSummaries = showDetailPanels ? zoneSummaries : zoneSummaries.slice(0, 3);
+  const simpleVisibleZoneSummaries = useMemo(() => {
+    const picked = [];
+    const addFirst = (types) => {
+      if (picked.length >= 2) return;
+      const found = zoneSummaries.find((zone) => types.includes(zone.type) && !picked.includes(zone));
+      if (found) picked.push(found);
+    };
+    addFirst(['buy']);
+    addFirst(['sell']);
+    addFirst(['risk']);
+    if (picked.length < 2) {
+      zoneSummaries.forEach((zone) => {
+        if (picked.length < 2 && !picked.includes(zone) && zone.type !== 'split') {
+          picked.push(zone);
+        }
+      });
+    }
+    return picked;
+  }, [zoneSummaries]);
 
   return (
     <div className={clsx(styles.stage, focusMode && styles.aiCardFocusMode, showDetailPanels && styles.detailPanelMode)}>
@@ -1021,6 +1048,17 @@ export default function TradingViewPriceChart({
               <b>지금 확인할 것</b>
               <span>{aiDecision.timingNextAction || aiDecision.primaryCondition || aiDecision.nextWatch}</span>
             </div>
+            {onRefreshAi && (
+              <button
+                type="button"
+                className={styles.sidebarAiButton}
+                onClick={onRefreshAi}
+                aria-label="AI 판단 다시 받기"
+              >
+                <Brain size={15} aria-hidden="true" />
+                AI 판단 다시 받기
+              </button>
+            )}
           </section>
         )}
 
@@ -1056,12 +1094,12 @@ export default function TradingViewPriceChart({
           </section>
         )}
 
-        {visibleZoneSummaries.length > 0 && (
-          <section className={styles.sidebarZoneList} aria-label="가격 확인 구간">
-            <span>가격 확인 구간</span>
-            {visibleZoneSummaries.slice(0, 3).map((zone) => (
+        {simpleVisibleZoneSummaries.length > 0 && (
+          <section className={styles.sidebarZoneList} aria-label="매수와 위험 기준">
+            <span>매수와 위험 기준</span>
+            {simpleVisibleZoneSummaries.map((zone) => (
               <article key={`${zone.type}-${zone.label}-${zone.price}`}>
-                <b>{zone.label || '확인 구간'}</b>
+                <b>{simpleZoneLabel(zone)}</b>
                 <strong>{zone.price || formatCurrency(zone.midPrice)}</strong>
                 <em>{zone.relation?.label || '가격 확인'}</em>
               </article>

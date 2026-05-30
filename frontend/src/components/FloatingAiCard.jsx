@@ -248,7 +248,7 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
             </p>
           )}
           {headerWorkflowChips.length > 0 && (
-            <div className={styles.miniOllamaStrip} aria-label="Ollama 핵심 인사이트">
+            <div className={styles.miniOllamaStrip} aria-label="AI 핵심 판단">
               {headerWorkflowChips.map((item) => (
                 <span key={item}>{item}</span>
               ))}
@@ -320,7 +320,7 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
           )}
 
           {false && threeFeaturePlan?.steps?.length > 0 && (
-            <div className={styles.threeFeaturePlan} aria-label="Ollama 3단계 실행 순서">
+            <div className={styles.threeFeaturePlan} aria-label="AI 판단 순서">
               <div className={styles.threeFeatureHeader}>
                 <span>{threeFeaturePlan.title || 'Ollama 3단계 실행 순서'}</span>
                 <strong>상담 → 뉴스 → 장후</strong>
@@ -504,7 +504,7 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
                       <p className={styles.sentimentCaution}>{newsSentiment.confidenceReason}</p>
                     )}
                     {false && (contextLabel || contextReason) && (
-                      <div className={styles.contextJudgement} aria-label="Ollama 뉴스 문맥 판단">
+                      <div className={styles.contextJudgement} aria-label="AI 뉴스 판단">
                         <b>Ollama 문맥 판단 · {contextLabel}</b>
                         <p>{contextReason}</p>
                         {newsSentiment.llmContextEvidence?.length > 0 && (
@@ -615,7 +615,7 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
               {(stockAdvice.buyConditions?.length > 0
                 || stockAdvice.watchConditions?.length > 0
                 || stockAdvice.sellConditions?.length > 0) && (
-                <div className={styles.ollamaConditionGrid} aria-label="Ollama 매매 조건 체크">
+                <div className={styles.ollamaConditionGrid} aria-label="AI 매매 조건 체크">
                   <article>
                     <CheckCircle2 size={15} className={styles.posIcon} />
                     <div>

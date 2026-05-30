@@ -114,9 +114,15 @@ function normalizeTradeZones(remoteZones, fallbackZones) {
     ...zone,
     type: normalizeZoneType(zone.type),
     rawType: zone.type,
+    label: humanizeText(zone.label || ""),
+    condition: humanizeText(zone.condition || ""),
+    evidence: humanizeText(zone.evidence || ""),
+    oppositeSignal: humanizeText(zone.oppositeSignal || ""),
+    reasoning: humanizeText(zone.reasoning || ""),
     price: formatPriceBand(zone),
-    beginner: zone.beginner || zone.beginnerExplanation,
-    invalidationSignal: zone.invalidationSignal || zone.oppositeSignal
+    beginner: humanizeText(zone.beginner || zone.beginnerExplanation || ""),
+    invalidationSignal: humanizeText(zone.invalidationSignal || zone.oppositeSignal || ""),
+    indicatorEvidence: normalizeTextList(zone.indicatorEvidence)
   }));
 }
 
@@ -313,6 +319,13 @@ function humanizeText(value, fallback = "") {
   const text = String(value || fallback || "").trim();
   if (!text) return "";
   return text
+    .replace(/Ollama\s*로컬\s*LLM/gi, "AI")
+    .replace(/로컬\s*LLM/gi, "AI")
+    .replace(/Ollama/gi, "AI")
+    .replace(/Qdrant/gi, "근거 검색")
+    .replace(/DB\s*감사\s*로그/gi, "저장 기록")
+    .replace(/DB\s*저장본/gi, "저장된 결과")
+    .replace(/DB/gi, "저장소")
     .replace(/\bretrieval\b/gi, "근거")
     .replace(/source grounded/gi, "근거 기반")
     .replace(/indicator snapshot/gi, "이동평균선 지표")
@@ -331,7 +344,47 @@ function humanizeText(value, fallback = "") {
     .replace(/\bsideways\b/gi, "방향 확인이 필요한 횡보 구간")
     .replace(/\bnormal\b/gi, "평균 수준")
     .replace(/\bstrong\b/gi, "평소보다 강함")
-    .replace(/\bweak\b/gi, "평소보다 약함");
+    .replace(/\bweak\b/gi, "평소보다 약함")
+    .replace(/분할\s*매수/g, "나누어 매수")
+    .replace(/분할매수/g, "나누어 매수")
+    .replace(/추격\s*매수/g, "급하게 따라 사기")
+    .replace(/추격/g, "급하게 따라가기")
+    .replace(/긴\s*윗꼬리/g, "장중에 올랐다가 다시 밀린 흐름")
+    .replace(/윗꼬리/g, "장중에 올랐다가 다시 밀리는지")
+    .replace(/급하게 따라가기하지/g, "급하게 따라 사지")
+    .replace(/급하게 따라가기보다/g, "급하게 따라 사기보다")
+    .replace(/급하게 따라가기하면/g, "급하게 따라 사면")
+    .replace(/장중에 올랐다가 다시 밀리는지 여부/g, "장중에 올랐다가 다시 밀리는 흐름")
+    .replace(/흐름를/g, "흐름을")
+    .replace(/나누어 매수 검토입니다/g, "매수를 나누어 검토합니다")
+    .replace(/거래가\s*붙/g, "거래가 늘어나")
+    .replace(/거래량이\s*붙는지/g, "거래량이 늘어나는지")
+    .replace(/거래량이\s*붙을\s*때만/g, "거래량이 늘어날 때만")
+    .replace(/거래량이\s*붙으면/g, "거래량이 늘어나면")
+    .replace(/거래량이\s*붙은/g, "거래량이 늘어난")
+    .replace(/거래량이\s*붙기/g, "거래량이 늘어나기")
+    .replace(/거래대금이\s*붙은/g, "거래대금이 늘어난")
+    .replace(/거래대금이\s*붙는지/g, "거래대금이 늘어나는지")
+    .replace(/이어\s*붙입니다/g, "이어 보여줍니다")
+    .replace(/붙기\s*전/g, "나오기 전")
+    .replace(/결과가\s*붙/g, "결과가 나오")
+    .replace(/센티멘트/g, "뉴스 분위기");
+}
+
+function normalizeCurrentDecisionSummary(summary = {}) {
+  if (!summary || typeof summary !== "object") return null;
+  return {
+    ...summary,
+    state: summary.state || "",
+    summary: humanizeText(summary.summary || ""),
+    buyReviewCondition: humanizeText(summary.buyReviewCondition || ""),
+    sellReviewCondition: humanizeText(summary.sellReviewCondition || ""),
+    watchCondition: humanizeText(summary.watchCondition || ""),
+    riskCondition: humanizeText(summary.riskCondition || ""),
+    oppositeSignal: humanizeText(summary.oppositeSignal || ""),
+    confidence: normalizeConfidence(summary.confidence),
+    reasons: normalizeTextList(summary.reasons)
+  };
 }
 
 function humanizeList(items, fallback = []) {
@@ -354,14 +407,14 @@ function aiRuntime(remoteAi) {
   const used = Boolean(llm.used || remoteAi?.mode === "rag_llm");
   const provider = llm.provider || "";
   const modeLabel = !used
-    ? "규칙형 근거 기반 답변"
+    ? "차트 기준 빠른 판단"
     : provider === "ollama"
-      ? "Ollama 로컬 LLM 답변"
+      ? "AI 판단"
       : provider === "anthropic_compatible"
-        ? "외부 Anthropic 호환 LLM 답변"
+        ? "AI 판단"
         : provider === "openai_compatible"
-          ? "외부 OpenAI 호환 LLM 답변"
-          : "실시간 LLM 답변";
+          ? "AI 판단"
+          : "AI 판단";
   return {
     responseMode: remoteAi?.mode || (used ? "rag_llm" : "rag_fallback_rule_based"),
     modeLabel,
@@ -578,7 +631,7 @@ function normalizeOllamaInsights(remote = {}) {
   const nextTradingDay = sentiment.nextTradingDay || {};
   return {
     mode: remote.mode || "ollama_fallback_rule_based",
-    modeLabel: remote.mode === "ollama_llm" ? "Ollama 로컬 LLM" : "Ollama 규칙형 미리보기",
+    modeLabel: remote.mode === "ollama_llm" ? "AI 판단" : "차트 기준 빠른 판단",
     provider: remote.provider || "ollama",
     model: remote.model || remote.retrieval?.llm?.model || "",
     configured: Boolean(remote.retrieval?.llm?.enabled || remote.mode === "ollama_llm"),
@@ -745,7 +798,7 @@ async function loadStockCoreWorkspaceRemote(code, interval) {
     events: Array.isArray(events?.events) ? events.events.map(normalizeEvent) : [],
     news: normalizeNews(news),
     indicatorSnapshot: zones?.indicatorSnapshot || null,
-    currentDecisionSummary: zones?.currentDecisionSummary || null,
+    currentDecisionSummary: normalizeCurrentDecisionSummary(zones?.currentDecisionSummary),
     ai: normalizeAi(null)
   };
 }
@@ -851,7 +904,7 @@ export async function loadStockAi(workspace, interval) {
   const promise = requestJson("/api/ai/chat", {
     method: "POST",
     body: JSON.stringify({
-      question: `${workspace.stock.name} 차트의 매수·매도 검토 조건, 관망 구간, 분할매수 검토 구간, 리스크 관리 구간을 교육용으로 설명해줘`,
+      question: `${workspace.stock.name} 차트의 매수, 관망, 매도 검토 조건을 초보자도 이해하기 쉽게 설명해줘`,
       context: buildAiContext(workspace, interval)
     })
   }).then(normalizeAi);
@@ -873,14 +926,14 @@ export async function loadStockOllamaInsights(workspace, interval) {
       hit: true,
       source: "frontend_memory",
       label: "프론트 2분 캐시 재사용",
-      note: "같은 종목·주기 요청이라 방금 받은 Ollama 결과를 다시 보여줍니다."
+      note: "같은 종목과 차트 주기라 방금 받은 AI 판단을 다시 보여줍니다."
     }));
   }
 
   const requestPayload = {
     method: "POST",
     body: JSON.stringify({
-      question: `${workspace.stock.name}을 지금 사도 되는지, 뉴스 감성 단기 방향과 장후 시장 요약까지 로컬 Ollama로 설명해줘`,
+      question: `${workspace.stock.name}을 지금 사도 되는지, 뉴스 분위기, 단기 방향, 장후 시장 요약까지 쉽게 설명해줘`,
       context: buildAiContext(workspace, interval)
     })
   };
@@ -897,11 +950,11 @@ export async function loadStockOllamaInsights(workspace, interval) {
       hit: false,
       source: value.mode === "ollama_llm" ? "fresh_ollama" : "fresh_ollama_fallback",
       label: value.storage?.saved
-        ? value.mode === "ollama_llm" ? "새 계산 후 DB 감사 로그 저장" : "새 계산 후 규칙형 보강"
-        : "새 계산 완료",
+        ? value.mode === "ollama_llm" ? "새 AI 판단 완료" : "빠른 판단 보강"
+        : "새 AI 판단 완료",
       note: value.storage?.saved
-        ? `Ollama 상담 응답을 새로 받고 ${value.storage.table || "DB"}에 저장했습니다.`
-        : "Ollama 상담 응답을 새로 받았지만 DB 저장 상태는 확인이 필요합니다."
+        ? "새 AI 판단을 받았습니다."
+        : "새 AI 판단을 받았습니다."
     }));
 
   setCachedPromise(ollamaInsightsCache, key, promise, AI_WORKSPACE_CACHE_MS);
@@ -921,8 +974,8 @@ export async function loadLatestStockOllamaInsights(stockCode) {
     return withRuntimeCacheMeta(normalizeOllamaInsights(remote), {
       hit: true,
       source: "database",
-      label: "DB 저장본 먼저 표시",
-      note: "이전에 저장된 Ollama 상담·뉴스·장후 종합 결과를 먼저 보여주고, 새 계산이 끝나면 갱신합니다."
+      label: "이전 판단 먼저 표시",
+      note: "이전에 확인한 AI 판단을 먼저 보여주고, 새 판단이 끝나면 갱신합니다."
     });
   } catch {
     return null;
@@ -946,8 +999,8 @@ export async function loadLatestOllamaAfterMarketReport() {
     .then((value) => withRuntimeCacheMeta(value, {
       hit: Boolean(value.storage?.cached),
       source: value.storage?.cached ? "database" : "fresh_ollama",
-      label: value.storage?.cached ? "DB 저장본 재사용" : value.storage?.saved ? "새 장후 리포트 생성 후 DB 저장" : "장후 리포트 새 조회",
-      note: value.storage?.note || "장후 리포트 저장 상태를 확인했습니다."
+      label: value.storage?.cached ? "이전 브리프 재사용" : value.storage?.saved ? "새 장후 브리프 생성" : "장후 브리프 새 조회",
+      note: humanizeText(value.storage?.note || "장후 브리프를 확인했습니다.")
     }));
   setCachedPromise(afterMarketReportCache, key, promise, AI_WORKSPACE_CACHE_MS);
   try {

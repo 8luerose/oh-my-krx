@@ -48,7 +48,7 @@ export function useWorkspace(initialCode = '005930', initialInterval = 'daily') 
             ollamaInsightsStatus: 'loading',
             marketReportStatus: 'loading',
             llmProvider: 'ollama',
-            modeLabel: 'Ollama 로컬 LLM 준비 중'
+            modeLabel: 'AI 판단 준비 중'
           }
         };
         if (mounted && requestId === requestIdRef.current) {
@@ -71,7 +71,7 @@ export function useWorkspace(initialCode = '005930', initialInterval = 'daily') 
                   ...current.ai,
                   ollamaInsightsStatus: 'delayed',
                   aiLayerStatus: current.ai?.aiLayerStatus === 'loading' ? 'ollama_delayed' : current.ai?.aiLayerStatus,
-                  modeLabel: 'Ollama 계산 지연, 완료 시 자동 반영'
+                  modeLabel: 'AI 판단 지연, 완료 시 자동 반영'
                 }
               };
             });
@@ -197,14 +197,14 @@ export function useWorkspace(initialCode = '005930', initialInterval = 'daily') 
                       ...current.ai,
                       ollamaInsightsStatus: 'ready',
                       aiLayerStatus: 'ready',
-                      modeLabel: current.ai.modeLabel || 'DB 저장본 유지',
+                      modeLabel: current.ai.modeLabel || '이전 판단 유지',
                       ollamaInsightsRefreshStatus: 'kept_cached'
                     }
                     : {
                       ...current.ai,
                       ollamaInsightsStatus: 'failed',
                       aiLayerStatus: current.ai?.aiLayerStatus === 'fallback_ready' ? 'fallback_ready' : 'ollama_failed',
-                      modeLabel: 'Ollama 응답 지연, 규칙형 근거 유지'
+                      modeLabel: 'AI 판단 지연, 차트 기준 판단 유지'
                     }
                 }));
               }

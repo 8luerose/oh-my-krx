@@ -569,6 +569,7 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
           onTermClick={onTermClick}
           focusMode={aiCardExpanded}
           onOpenPortfolio={onOpenPortfolio}
+          onRefreshAi={onRefreshAi}
         />
       </div>
 

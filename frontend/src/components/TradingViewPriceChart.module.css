@@ -203,6 +203,35 @@
   line-height: 1.36;
 }
 
+.sidebarAiButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #e0f2fe, #bbf7d0);
+  color: #0f172a;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 950;
+  line-height: 1.2;
+  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.22);
+  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+}
+
+.sidebarAiButton:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+  box-shadow: 0 18px 34px rgba(2, 6, 23, 0.28);
+}
+
+.sidebarAiButton:active {
+  transform: translateY(0);
+}
+
 .sidebarMetricGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
