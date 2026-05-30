@@ -739,6 +739,9 @@
 .forecastHud small,
 .forecastLevelGrid span,
 .forecastLevelGrid b,
+.forecastActionStrip span,
+.forecastActionStrip em,
+.forecastActionStrip b,
 .forecastSignalStrip span,
 .forecastSignalStrip em,
 .forecastSignalStrip b,
@@ -831,6 +834,41 @@
   font-size: 0.74rem;
   font-weight: 950;
   line-height: 1.2;
+}
+
+.forecastActionStrip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.forecastActionStrip span {
+  display: grid;
+  gap: 4px;
+  min-height: 52px;
+  border: 1px solid rgba(96, 165, 250, 0.16);
+  border-radius: 7px;
+  background: rgba(37, 99, 235, 0.1);
+  padding: 6px;
+}
+
+.forecastActionStrip em {
+  color: rgba(191, 219, 254, 0.72);
+  font-size: 0.64rem;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1.2;
+}
+
+.forecastActionStrip b {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #f8fafc;
+  font-size: 0.69rem;
+  font-weight: 880;
+  line-height: 1.24;
+  overflow: hidden;
 }
 
 .forecastSignalStrip {

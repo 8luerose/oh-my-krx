@@ -654,6 +654,26 @@ export default function TradingViewPriceChart({
         : refreshStatus === 'kept_cached'
           ? 'DB 저장본 유지'
           : runtime?.label || '';
+    const qdrant = ai?.ollamaInsights?.qdrant || ai?.marketReport?.qdrant || null;
+    const qdrantLabel = qdrant?.enabled && !qdrant?.skipped
+      ? `Qdrant 근거 ${qdrant.retrievedCount || 0}개`
+      : qdrant?.asyncUpsertScheduled
+        ? 'Qdrant 저장 중'
+        : qdrant?.asyncUpsertDeduped ? 'Qdrant 저장 대기' : '';
+    const actionChecks = [
+      {
+        label: '지금',
+        value: compactText(aiDecision.decision || '관망', '관망', 24)
+      },
+      {
+        label: '매수 전',
+        value: compactText(aiDecision.tradeTiming.entryTiming || aiDecision.primaryCondition, '20일선과 거래량 확인', 46)
+      },
+      {
+        label: '매도 전',
+        value: compactText(aiDecision.tradeTiming.exitTiming || aiDecision.cautionReason, '지지선 이탈 확인', 46)
+      }
+    ];
     return {
       tone,
       headline,
@@ -669,7 +689,9 @@ export default function TradingViewPriceChart({
       planSteps,
       probabilityLabel: hasProbability ? `상승 ${upProbability}% · 하락 ${downProbability}%` : '확률 계산 중',
       modeLabel: aiDecision.live ? 'Ollama LLM 기준' : aiDecision.modeLabel || '근거 계산 기준',
-      runtimeLabel
+      runtimeLabel,
+      qdrantLabel,
+      actionChecks
     };
   }, [ai, aiDecision, chartMetrics]);
 
@@ -1049,6 +1071,14 @@ export default function TradingViewPriceChart({
             <span>관망 기준 <b>{formatCurrency(forecastGuide.watchBase)}</b></span>
             <span>방어 기준 <b>{formatCurrency(forecastGuide.defenseBase)}</b></span>
           </div>
+          <div className={styles.forecastActionStrip} aria-label="AI 매수 관망 매도 행동 기준">
+            {forecastGuide.actionChecks.map((item) => (
+              <span key={`${item.label}-${item.value}`}>
+                <em>{item.label}</em>
+                <b>{item.value}</b>
+              </span>
+            ))}
+          </div>
           {forecastGuide.signals.length > 0 && (
             <div className={styles.forecastSignalStrip} aria-label="상담 뉴스 장후 연결 상태">
               {forecastGuide.signals.map((signal) => (
@@ -1090,7 +1120,12 @@ export default function TradingViewPriceChart({
               </div>
             </div>
           )}
-          <small>{forecastGuide.probabilityLabel} · {forecastGuide.runtimeLabel ? `${forecastGuide.runtimeLabel} · ` : ''}{forecastGuide.consensusSummary}</small>
+          <small>
+            {forecastGuide.probabilityLabel}
+            {forecastGuide.qdrantLabel ? ` · ${forecastGuide.qdrantLabel}` : ''}
+            {forecastGuide.runtimeLabel ? ` · ${forecastGuide.runtimeLabel}` : ''}
+            {` · ${forecastGuide.consensusSummary}`}
+          </small>
           <em>{forecastGuide.nextAction} · {forecastGuide.modeLabel}</em>
         </aside>
       )}
