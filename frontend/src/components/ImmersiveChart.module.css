@@ -127,142 +127,7 @@
   border-left: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Premium Dynamic Search Bar */
-.quickSearchForm {
-  flex: 1 1 380px;
-  min-width: 280px;
-  max-width: 480px;
-  display: grid;
-  grid-template-columns: auto minmax(120px, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  min-height: 48px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: var(--radius-round);
-  background: rgba(19, 24, 36, 0.85);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  box-shadow: var(--shadow-float);
-  padding: 4px 6px 4px 16px;
-  pointer-events: auto;
-  transition: all var(--transition-fast);
-}
 
-.quickSearchForm:focus-within {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px var(--color-accent-glow), var(--shadow-float);
-}
-
-.quickSearchForm label {
-  color: var(--color-text-secondary);
-  font-size: 0.8rem;
-  font-weight: 800;
-  line-weight: 1;
-  white-space: nowrap;
-}
-
-.quickSearchForm input {
-  min-width: 0;
-  height: 36px;
-  border: 0;
-  background: transparent;
-  color: var(--color-text-primary);
-  font-size: 0.95rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  outline: none;
-}
-
-.quickSearchForm input::placeholder {
-  color: var(--color-text-tertiary);
-}
-
-.quickSearchForm button {
-  height: 36px;
-  border-radius: var(--radius-round);
-  background: var(--color-accent);
-  color: #ffffff;
-  font-size: 0.85rem;
-  font-weight: 800;
-  line-height: 1;
-  padding: 0 18px;
-  white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(49, 130, 246, 0.3);
-  transition: all var(--transition-fast);
-}
-
-.quickSearchForm button:hover {
-  filter: brightness(1.1);
-  transform: translateY(-1px);
-}
-
-.quickSearchForm button:active {
-  transform: scale(0.96);
-}
-
-.quickSearchForm em {
-  grid-column: 1 / -1;
-  color: var(--color-positive);
-  font-size: 0.75rem;
-  font-style: normal;
-  font-weight: 800;
-  padding-left: 4px;
-  animation: fadeIn var(--transition-fast) forwards;
-}
-
-/* Toss Brief Date Pill Strip */
-.briefDateStrip {
-  flex: 0 1 340px;
-  min-width: 200px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  min-height: 48px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: var(--radius-round);
-  background: rgba(19, 24, 36, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  padding: 4px 6px 4px 14px;
-  pointer-events: auto;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-}
-
-.briefDateStrip span {
-  color: var(--color-text-secondary);
-  font-size: 0.8rem;
-  font-weight: 800;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.briefDateStrip b,
-.briefDateStrip button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 32px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: var(--radius-round);
-  background: rgba(28, 34, 52, 0.6);
-  color: var(--color-text-primary);
-  font-size: 0.78rem;
-  font-weight: 800;
-  padding: 0 12px;
-  white-space: nowrap;
-  transition: all var(--transition-fast);
-}
-
-.briefDateStrip button:hover {
-  background: rgba(49, 130, 246, 0.15);
-  border-color: rgba(49, 130, 246, 0.3);
-  color: #93c5fd;
-}
-
-.briefDateStrip button:active {
-  transform: scale(0.95);
-}
 
 /* Action Dropdown Group (Pill Buttons) */
 .actionGroup {
@@ -622,24 +487,13 @@
     left: 16px;
     right: 16px;
     flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .quickSearchForm {
-    flex: 1 1 100%;
-    max-width: 100%;
-    order: 1;
-  }
-
-  .briefDateStrip {
-    flex: 1 1 auto;
-    order: 2;
+    gap: 12px;
+    justify-content: center;
   }
 
   .actionGroup {
-    flex: 1 1 auto;
-    justify-content: flex-start;
-    order: 3;
+    flex: 1 1 100%;
+    justify-content: center;
   }
 
   .heroInfo {

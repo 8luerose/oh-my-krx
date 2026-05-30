@@ -1140,23 +1140,48 @@ export default function TradingViewPriceChart({
         {chartError && <div className={styles.chartError}>{chartError}</div>}
       </div>
       <aside className={styles.decisionSidebar} aria-label="AI 투자 비서 요약">
-        <div className={styles.sidebarHeader}>
-          <div>
+        <div className={styles.sidebarHeaderCard}>
+          <div className={styles.sidebarHeaderTitle}>
             <span>현재 종목</span>
             <strong>{stock?.name || '종목 선택'} ({stock?.code || '000000'})</strong>
           </div>
-          <button type="button" onClick={handleFitChart}>
-            차트 맞춤
-          </button>
+          {latest && (
+            <div className={styles.sidebarHeaderPrice}>
+              <div className={styles.sidebarPriceRow}>
+                <strong className={styles.bigPrice}>{formatCurrency(latest.close)}</strong>
+                <span className={clsx(styles.changeRateBadge, Number(chartMetrics?.changeRate) >= 0 ? styles.pos : styles.neg)}>
+                  {getPeriodLabel(interval)} 대비 {formatPercent(chartMetrics?.changeRate)}
+                </span>
+              </div>
+              <span className={styles.asOfDate}>{latest.time} 기준 현재가</span>
+            </div>
+          )}
         </div>
 
         {latest && (
-          <section className={styles.sidebarPriceCard}>
-            <span>{latest.time} 기준 현재가</span>
-            <strong>{formatCurrency(latest.close)}</strong>
-            <em className={clsx(Number(chartMetrics?.changeRate) >= 0 ? styles.pos : styles.neg)}>
-              {getPeriodLabel(interval)} 대비 {formatPercent(chartMetrics?.changeRate)}
-            </em>
+          <section className={styles.chartLegendCard} aria-label="차트 요약 및 범례">
+            <div className={styles.legendCardHeader}>
+              <span>📊 차트 요약</span>
+              <em>거래량 {formatVolume(latest.volume)}</em>
+            </div>
+            <div className={styles.legendCardGrid}>
+              <div className={styles.legendGridItem}>
+                <span className={styles.legendItemLabel}><CandlestickChart size={13} /> 캔들</span>
+                <strong>{formatCurrency(latest.close)}</strong>
+              </div>
+              <div className={styles.legendGridItem}>
+                <span className={styles.legendItemLabel}><i className={styles.ma5LineColor} /> 5일선</span>
+                <strong>{latest.ma5 ? formatCurrency(latest.ma5) : '계산 중'}</strong>
+              </div>
+              <div className={styles.legendGridItem}>
+                <span className={styles.legendItemLabel}><i className={styles.ma20LineColor} /> 20일선</span>
+                <strong>{latest.ma20 ? formatCurrency(latest.ma20) : '계산 중'}</strong>
+              </div>
+              <div className={styles.legendGridItem}>
+                <span className={styles.legendItemLabel}><i className={styles.ma60LineColor} /> 60일선</span>
+                <strong>{latest.ma60 ? formatCurrency(latest.ma60) : '계산 중'}</strong>
+              </div>
+            </div>
           </section>
         )}
 
@@ -1200,63 +1225,6 @@ export default function TradingViewPriceChart({
             <span>시장 브리프</span>
           </button>
         </div>
-
-        {activeAssistPanel === 'ai' && aiDecision && (
-          <section
-            className={clsx(
-              styles.inlineAssistPanel,
-              styles.aiHelpPanel,
-              aiDecision.tone === 'buy' && styles.aiHelpPanelBuy,
-              aiDecision.tone === 'sell' && styles.aiHelpPanelSell
-            )}
-            aria-label="AI 상세 전략 계획"
-          >
-            <div className={styles.assistPanelHeader}>
-              <span>{stock?.name || '현재 종목'} 맞춤 전략</span>
-              <strong>{plainDecisionLabel(aiDecision.decision)}</strong>
-            </div>
-            <p>로컬 AI가 차트, 뉴스, 재무를 종합하여 산출한 시나리오별 검토 가격 기준입니다.</p>
-            <div className={styles.assistTimingGrid} aria-label="시나리오별 진입 시점">
-              <article>
-                <b>살 때</b>
-                <span>{aiDecision.tradeTiming.entryTiming || aiDecision.primaryCondition}</span>
-              </article>
-              <article>
-                <b>팔 때</b>
-                <span>{aiDecision.tradeTiming.exitTiming || aiDecision.cautionReason}</span>
-              </article>
-              <article>
-                <b>기다릴 때</b>
-                <span>{aiDecision.tradeTiming.waitCondition || aiDecision.nextWatch}</span>
-              </article>
-              <article>
-                <b>신호 바꿀 때</b>
-                <span>{aiDecision.tradeTiming.invalidationTrigger || '신호와 거래량 흐름이 예상과 반대로 엇갈리면 대기합니다.'}</span>
-              </article>
-            </div>
-            <div className={styles.aiFeatureGrid} aria-label="전략 요약">
-              <article>
-                <span>1단계 종목 판단</span>
-                <strong>{aiDecision.decision}</strong>
-                <p>{aiDecision.primaryCondition}</p>
-              </article>
-              <article>
-                <span>2단계 뉴스 감성</span>
-                <strong>{newsDirection ? newsDirection.label : '뉴스 분석 대기'}</strong>
-                <p>
-                  {newsDirection
-                    ? `단기 상승 확률 ${newsDirection.up ?? '확인'}% · 하락 ${newsDirection.down ?? '확인'}%. ${newsDirection.action}`
-                    : '최신 문맥 지표를 읽고 있습니다.'}
-                </p>
-              </article>
-              <article>
-                <span>3단계 가격 대응</span>
-                <strong>{getPeriodLabel(interval)}비 {formatPercent(chartMetrics?.changeRate)}</strong>
-                <p>{plainNextCheck(aiDecision, chartMetrics)}</p>
-              </article>
-            </div>
-          </section>
-        )}
 
         {newsDirection && (
           <section className={styles.sidebarNewsCard}>
@@ -1309,20 +1277,80 @@ export default function TradingViewPriceChart({
           </section>
         </div>
       ), document.body)}
-      <div className={styles.legend} aria-label="차트 범례">
-        <span><CandlestickChart size={14} aria-hidden="true" />캔들</span>
-        <span><i className={styles.ma5Dot} />5일선</span>
-        <span><i className={styles.ma20Dot} />20일선</span>
-        <span><i className={styles.ma60Dot} />60일선</span>
-        <span><i className={styles.volumeDot} />거래량</span>
-      </div>
-      {latest && (
-        <div className={styles.latestBar}>
-          <span>{latest.time}</span>
-          <strong>{formatCurrency(latest.close)}</strong>
-          <em>거래량 {formatVolume(latest.volume)}</em>
+
+      {activeAssistPanel === 'ai' && aiDecision && typeof document !== 'undefined' && createPortal((
+        <div className={styles.briefModalLayer} role="presentation" onClick={() => setActiveAssistPanel('none')}>
+          <section
+            className={clsx(
+              styles.aiModal,
+              aiDecision.tone === 'buy' && styles.aiModalBuy,
+              aiDecision.tone === 'sell' && styles.aiModalSell
+            )}
+            role="dialog"
+            aria-modal="true"
+            aria-label="AI 상세 판단 전략"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={styles.briefModalHeader}>
+              <div>
+                <span>{stock?.name || '현재 종목'} 맞춤 전략</span>
+                <strong className={clsx(
+                  styles.modalDecisionBadge,
+                  aiDecision.tone === 'buy' && styles.modalDecisionBuy,
+                  aiDecision.tone === 'sell' && styles.modalDecisionSell
+                )}>
+                  {aiDecision.tone === 'buy' ? '🔴 매수 검토 권장' : aiDecision.tone === 'sell' ? '🔵 매도 검토 권장' : '🟢 관망 권장'}
+                </strong>
+              </div>
+              <button type="button" onClick={() => setActiveAssistPanel('none')} aria-label="닫기">닫기</button>
+            </div>
+            <div className={styles.aiModalBody}>
+              <p className={styles.aiModalDesc}>로컬 AI가 차트, 뉴스, 재무를 종합하여 산출한 시나리오별 검토 가격 기준입니다.</p>
+              
+              <div className={styles.assistTimingGrid} aria-label="시나리오별 진입 시점">
+                <article>
+                  <b>살 때</b>
+                  <span>{aiDecision.tradeTiming.entryTiming || aiDecision.primaryCondition}</span>
+                </article>
+                <article>
+                  <b>팔 때</b>
+                  <span>{aiDecision.tradeTiming.exitTiming || aiDecision.cautionReason}</span>
+                </article>
+                <article>
+                  <b>기다릴 때</b>
+                  <span>{aiDecision.tradeTiming.waitCondition || aiDecision.nextWatch}</span>
+                </article>
+                <article>
+                  <b>신호 바꿀 때</b>
+                  <span>{aiDecision.tradeTiming.invalidationTrigger || '신호와 거래량 흐름이 예상과 반대로 엇갈리면 대기합니다.'}</span>
+                </article>
+              </div>
+
+              <div className={styles.aiFeatureGrid} aria-label="전략 요약">
+                <article>
+                  <span>1단계 종목 판단</span>
+                  <strong>{aiDecision.decision}</strong>
+                  <p>{aiDecision.primaryCondition}</p>
+                </article>
+                <article>
+                  <span>2단계 뉴스 감성</span>
+                  <strong>{newsDirection ? newsDirection.label : '뉴스 분석 대기'}</strong>
+                  <p>
+                    {newsDirection
+                      ? `단기 상승 확률 ${newsDirection.up ?? '확인'}% · 하락 ${newsDirection.down ?? '확인'}%. ${newsDirection.action}`
+                      : '최신 문맥 지표를 읽고 있습니다.'}
+                  </p>
+                </article>
+                <article>
+                  <span>3단계 가격 대응</span>
+                  <strong>{getPeriodLabel(interval)}비 {formatPercent(chartMetrics?.changeRate)}</strong>
+                  <p>{plainNextCheck(aiDecision, chartMetrics)}</p>
+                </article>
+              </div>
+            </div>
+          </section>
         </div>
-      )}
+      ), document.body)}
       {chartMetrics && (
         <aside className={styles.signalPanel} aria-label="현재 차트 핵심 신호">
           <div className={styles.signalHeader}>
