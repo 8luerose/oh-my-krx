@@ -197,6 +197,8 @@
   border-radius: var(--radius-lg);
   padding: var(--spacing-4);
   width: 360px;
+  max-height: calc(100dvh - 96px);
+  overflow-y: auto;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
   animation: slideDownFade 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   transform-origin: top left;
@@ -451,6 +453,59 @@
   word-break: keep-all;
 }
 
+.aiPipelineSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-width: 0;
+}
+
+.aiPipelineSummary span {
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.58);
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 0.68rem;
+  font-weight: 850;
+  line-height: 1.2;
+  padding: 4px 7px;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.aiPipelineSummary .aiPipelineStatusChip {
+  color: #e0f2fe;
+}
+
+.aiPipelineSummary .aiPipelineReadyChip {
+  border-color: rgba(34, 197, 94, 0.24);
+  background: rgba(34, 197, 94, 0.12);
+  color: #bbf7d0;
+}
+
+.aiPipelineSummary .aiPipelineLoadingChip {
+  border-color: rgba(96, 165, 250, 0.28);
+  background: rgba(37, 99, 235, 0.16);
+  color: #bfdbfe;
+}
+
+.aiPipelineSummary .aiPipelineDelayedChip {
+  border-color: rgba(245, 158, 11, 0.28);
+  background: rgba(245, 158, 11, 0.12);
+  color: #fde68a;
+}
+
+.aiPipelineHint {
+  margin: -1px 0 1px;
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 720;
+  line-height: 1.42;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
 .aiPipelineRow {
   display: grid;
   grid-template-columns: 9px minmax(0, 1fr);
@@ -498,10 +553,25 @@
 }
 
 .aiPipelineRow strong {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   color: var(--color-text-primary);
   font-size: 0.76rem;
   font-weight: 900;
   line-height: 1.3;
+}
+
+.aiPipelineRow strong small {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.12);
+  color: rgba(226, 232, 240, 0.68);
+  font-size: 0.62rem;
+  font-weight: 900;
+  line-height: 1.1;
+  padding: 3px 6px;
 }
 
 .aiPipelineRow em {
@@ -523,7 +593,7 @@
 .stockList {
   display: grid;
   gap: var(--spacing-2);
-  max-height: 330px;
+  max-height: min(300px, 32dvh);
   overflow-y: auto;
   padding-right: 4px;
 }
@@ -711,6 +781,19 @@
 
   .aiPipelinePanel > b {
     font-size: 0.75rem;
+  }
+
+  .aiPipelineSummary {
+    gap: 4px;
+  }
+
+  .aiPipelineSummary span {
+    font-size: 0.65rem;
+    padding: 4px 6px;
+  }
+
+  .aiPipelineHint {
+    display: none;
   }
 
   .aiPipelineRow {

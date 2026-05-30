@@ -15,6 +15,13 @@ function getEventLabel(type) {
   return '확인 필요';
 }
 
+function pipelineStateLabel(state) {
+  if (state === 'ready') return '완료';
+  if (state === 'loading') return '실행 중';
+  if (state === 'delayed') return '지연';
+  return '대기';
+}
+
 export default function ImmersiveChart({ stock, chart, zones, events, ai, indicatorSnapshot, decisionSummary, interval, onChangeInterval, stockOptions = [], onChangeStock, learningMode, onTermClick }) {
   const toolbarRef = useRef(null);
   const [activePanel, setActivePanel] = useState('none'); // 'none', 'stocks', 'guide', 'ai'
@@ -117,6 +124,31 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
       }
     ];
   }, [ai]);
+
+  const aiPipelineSummary = useMemo(() => {
+    const readyCount = aiExecutionSteps.filter((step) => step.state === 'ready').length;
+    const hasLoading = aiExecutionSteps.some((step) => step.state === 'loading');
+    const hasDelayed = aiExecutionSteps.some((step) => step.state === 'delayed');
+    const insights = ai?.ollamaInsights;
+    const qdrant = insights?.qdrant || ai?.marketReport?.qdrant;
+    const storage = insights?.storage || ai?.storage;
+    const status = hasLoading
+      ? 'AI 실행 중'
+      : hasDelayed
+        ? '규칙형 보강'
+        : readyCount === aiExecutionSteps.length
+          ? '3개 기능 완료'
+          : '선택 대기';
+    return {
+      status,
+      readyCount,
+      totalCount: aiExecutionSteps.length,
+      mode: insights?.mode === 'ollama_llm' || ai?.llmUsed ? 'Ollama LLM' : '근거 계산',
+      storageLabel: storage?.saved ? `상담 DB #${storage.id || '저장'}` : '기업 선택 저장 안 함',
+      qdrantLabel: qdrant?.enabled ? `Qdrant ${qdrant.retrievedCount || 0}개` : 'Qdrant 대기',
+      tone: hasLoading ? 'loading' : hasDelayed ? 'delayed' : readyCount === aiExecutionSteps.length ? 'ready' : 'waiting'
+    };
+  }, [ai, aiExecutionSteps]);
 
   if (!chartData || chartData.length === 0) return null;
 
@@ -267,6 +299,23 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
                   </form>
                   <div className={styles.aiPipelinePanel} aria-label="종목 선택 후 Ollama 실행 흐름">
                     <b>종목을 고르면 AI가 바로 확인하는 3가지</b>
+                    <div className={styles.aiPipelineSummary} aria-label="Ollama 실행 상태 요약">
+                      <span className={clsx(
+                        styles.aiPipelineStatusChip,
+                        aiPipelineSummary.tone === 'ready' && styles.aiPipelineReadyChip,
+                        aiPipelineSummary.tone === 'loading' && styles.aiPipelineLoadingChip,
+                        aiPipelineSummary.tone === 'delayed' && styles.aiPipelineDelayedChip
+                      )}>
+                        {aiPipelineSummary.status}
+                      </span>
+                      <span>{aiPipelineSummary.readyCount}/{aiPipelineSummary.totalCount} 완료</span>
+                      <span>{aiPipelineSummary.mode}</span>
+                      <span>{aiPipelineSummary.storageLabel}</span>
+                      <span>{aiPipelineSummary.qdrantLabel}</span>
+                    </div>
+                    <p className={styles.aiPipelineHint}>
+                      {stock.name}을 선택하면 차트·재무·뉴스를 먼저 불러오고, Ollama 상담과 장후 리포트는 뒤에서 이어 붙입니다.
+                    </p>
                     {aiExecutionSteps.map((step) => (
                       <div className={styles.aiPipelineRow} key={step.label}>
                         <span className={clsx(
@@ -276,7 +325,10 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
                           step.state === 'delayed' && styles.aiPipelineDelayed
                         )} />
                         <div>
-                          <strong>{step.label}</strong>
+                          <strong>
+                            {step.label}
+                            <small>{pipelineStateLabel(step.state)}</small>
+                          </strong>
                           <em>{step.value}</em>
                           <p>{step.detail}</p>
                         </div>
