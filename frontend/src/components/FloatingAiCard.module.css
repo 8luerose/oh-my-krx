@@ -19,6 +19,14 @@
   z-index: 1000;
 }
 
+.container[open] {
+  width: min(660px, calc(100vw - 560px));
+  max-height: min(640px, calc(100vh - 260px));
+  background: rgba(8, 13, 24, 0.94);
+  border-color: rgba(96, 165, 250, 0.24);
+  box-shadow: 0 28px 92px rgba(0, 0, 0, 0.58), 0 0 0 1px rgba(96, 165, 250, 0.08);
+}
+
 .header {
   width: 100%;
   border: 0;
@@ -34,6 +42,11 @@
   text-align: left;
   list-style: none;
   user-select: none;
+}
+
+.container[open] .header {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(8, 13, 24, 0.76));
 }
 
 .header::-webkit-details-marker {
@@ -124,14 +137,29 @@
 
 /* Details Section */
 .details {
-  padding: 0 var(--spacing-4) var(--spacing-4) var(--spacing-4);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding: var(--spacing-4);
+  border-top: 0;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-4);
   min-height: 0;
   overflow-y: auto;
   animation: fadeIn var(--transition-fast) forwards;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(96, 165, 250, 0.34) rgba(15, 23, 42, 0.2);
+}
+
+.details::-webkit-scrollbar {
+  width: 8px;
+}
+
+.details::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.18);
+}
+
+.details::-webkit-scrollbar-thumb {
+  background: rgba(96, 165, 250, 0.32);
+  border-radius: 999px;
 }
 
 .container:not([open]) .details,
@@ -162,12 +190,14 @@
 }
 
 .runtimeNotice {
-  background: rgba(59, 130, 246, 0.11);
+  border: 1px solid rgba(96, 165, 250, 0.14);
+  background: rgba(30, 64, 175, 0.18);
 }
 
 .storageNotice {
   margin-top: 0;
-  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.14);
+  background: rgba(6, 78, 59, 0.2);
 }
 
 .runtimeNotice svg,
@@ -188,7 +218,6 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--spacing-2);
-  margin-top: var(--spacing-4);
 }
 
 .workflowCard {
@@ -1242,6 +1271,11 @@
     animation-name: floatingCardInMobile;
   }
 
+  .container[open] {
+    width: calc(100vw - var(--spacing-3) - var(--spacing-3));
+    max-height: calc(100vh - 128px);
+  }
+
   .header {
     gap: var(--spacing-3);
     padding: var(--spacing-3);
@@ -1288,6 +1322,11 @@
 @media (min-width: 769px) and (max-width: 1120px) {
   .container {
     width: min(520px, calc(100vw - 420px));
+  }
+
+  .container[open] {
+    width: min(520px, calc(100vw - 420px));
+    max-height: min(620px, calc(100vh - 220px));
   }
 
   .ollamaWorkflowGrid {
