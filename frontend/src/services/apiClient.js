@@ -1055,6 +1055,22 @@ export async function loadLearningTerms() {
   }
 }
 
+export async function askAiForTerm(termName, stockCode = "") {
+  try {
+    const response = await requestJson("/api/ai/chat", {
+      method: "POST",
+      body: JSON.stringify({
+        message: `주식 용어 중 '${termName}'이 초보자 눈높이에서 무엇을 의미하는지, 그리고 실전 투자에서 어떻게 해석하고 활용해야 하는지 아주 이해하기 쉽게 3문장 이내로 쉬운 단어로 설명해줘.`,
+        stockCode
+      })
+    });
+    return response.answer || response.conclusion || response.response || response.content || "용어 설명을 가져오지 못했습니다.";
+  } catch (error) {
+    console.error("AI 용어 설명 실패:", error);
+    throw new Error("로컬 AI 연결에 실패했거나 대답을 생성하는 중 오류가 발생했습니다.");
+  }
+}
+
 export async function searchStocks(query) {
   const q = String(query || "").trim();
   if (!q) return [];

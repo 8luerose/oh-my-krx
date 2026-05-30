@@ -1371,7 +1371,7 @@ export default function TradingViewPriceChart({
               </strong>
             </div>
             <div>
-              <span>저항선까지 (상승장벽)</span>
+              <span>저항선까지 (돌파목표)</span>
               <strong>{formatPercent(chartMetrics.resistanceDistance)}</strong>
             </div>
             <div>
@@ -1380,7 +1380,7 @@ export default function TradingViewPriceChart({
             </div>
           </div>
           <p>
-            20일선(1달평균) {formatCurrency(chartMetrics.ma20)} · 지지선(하락방어) {formatCurrency(chartMetrics.support)} · 저항선(상승장벽) {formatCurrency(chartMetrics.resistance)}
+            20일선(1달평균) {formatCurrency(chartMetrics.ma20)} · 지지선(하락방어) {formatCurrency(chartMetrics.support)} · 저항선(돌파목표) {formatCurrency(chartMetrics.resistance)}
           </p>
         </aside>
       )}

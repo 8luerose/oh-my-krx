@@ -98,6 +98,27 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
   const [selectedBriefData, setSelectedBriefData] = useState(null);
   const [selectedBriefLoading, setSelectedBriefLoading] = useState(false);
 
+  // AI로 학습하기 용어 사전 모달 상태
+  const [learningModalOpen, setLearningModalOpen] = useState(false);
+  const [selectedTerm, setSelectedTerm] = useState('');
+  const [learningExplanation, setLearningExplanation] = useState('');
+  const [loadingTerm, setLoadingTerm] = useState(false);
+
+  const handleAskAiForTerm = async (termName) => {
+    setSelectedTerm(termName);
+    setLoadingTerm(true);
+    setLearningExplanation('');
+    try {
+      const { askAiForTerm } = await import('../services/apiClient');
+      const ans = await askAiForTerm(termName, stock?.code);
+      setLearningExplanation(ans);
+    } catch (error) {
+      setLearningExplanation(error.message || '로컬 AI의 응답을 가져오지 못했습니다.');
+    } finally {
+      setLoadingTerm(false);
+    }
+  };
+
   useEffect(() => {
     setStockCodeInput(stock?.code || '');
     setStockCodeError('');
@@ -635,32 +656,6 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
 
   return (
     <div className={styles.container}>
-      <div className={styles.chartWrapper}>
-        <TradingViewPriceChart
-          stock={stock}
-          interval={interval}
-          chartData={chartData}
-          zones={zones}
-          events={events}
-          indicatorSnapshot={indicatorSnapshot}
-          ai={ai}
-          learningMode={learningMode}
-          onTermClick={onTermClick}
-          focusMode={aiCardExpanded}
-          onOpenPortfolio={onOpenPortfolio}
-          onRefreshAi={onRefreshAi}
-          briefArchive={summaryArchive}
-          briefLoading={summaryArchiveLoading}
-          onReloadBrief={() => {
-            setSummaryArchiveLoading(true);
-            loadSummaryArchive()
-              .then((archive) => setSummaryArchive(archive))
-              .catch(() => setSummaryArchive({ latest: null, list: [], source: '불러오기 실패' }))
-              .finally(() => setSummaryArchiveLoading(false));
-          }}
-        />
-      </div>
-
       {/* Top Unified Toolbar */}
       <div className={styles.topToolbar} data-testid="chart-toolbar" ref={toolbarRef}>
         <div className={styles.intervalGroup}>
@@ -717,86 +712,26 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
                     기업 이름이나 종목코드를 고르면 차트가 바뀝니다. 판단은 아래 AI 카드에서 바로 확인하세요.
                   </p>
                   <form className={styles.stockCodeForm} onSubmit={handleStockCodeSubmit}>
-                    <label htmlFor="stock-code-direct-input">종목코드 직접 입력</label>
-                    <div>
-                      <input
-                        id="stock-code-direct-input"
-                        value={stockCodeInput}
-                        inputMode="numeric"
-                        pattern="[0-9]{6}"
-                        maxLength={6}
-                        placeholder="005930"
-                        aria-invalid={Boolean(stockCodeError)}
-                        aria-describedby={stockCodeError ? 'stock-code-direct-error' : undefined}
-                        onChange={(event) => {
-                          setStockCodeInput(event.target.value.replace(/\D/g, '').slice(0, 6));
-                          setStockCodeError('');
-                        }}
-                      />
-                      <button type="submit">분석</button>
-                    </div>
-                    {stockCodeError && <em id="stock-code-direct-error">{stockCodeError}</em>}
+                     <label htmlFor="stock-code-direct-input">종목코드 직접 입력</label>
+                     <div>
+                       <input
+                         id="stock-code-direct-input"
+                         value={stockCodeInput}
+                         inputMode="numeric"
+                         pattern="[0-9]{6}"
+                         maxLength={6}
+                         placeholder="005930"
+                         aria-invalid={Boolean(stockCodeError)}
+                         aria-describedby={stockCodeError ? 'stock-code-direct-error' : undefined}
+                         onChange={(event) => {
+                           setStockCodeInput(event.target.value.replace(/\D/g, '').slice(0, 6));
+                           setStockCodeError('');
+                         }}
+                       />
+                       <button type="submit">분석</button>
+                     </div>
+                     {stockCodeError && <em id="stock-code-direct-error">{stockCodeError}</em>}
                   </form>
-
-
-
-
-                  {false && <div className={styles.aiPipelinePanel} aria-label="종목 선택 후 AI 실행 흐름">
-                    <b>종목을 고르면 AI가 바로 확인하는 3가지</b>
-                    <div className={styles.aiPipelineSummary} aria-label="Ollama 실행 상태 요약">
-                      <span className={clsx(
-                        styles.aiPipelineStatusChip,
-                        aiPipelineSummary.tone === 'ready' && styles.aiPipelineReadyChip,
-                        aiPipelineSummary.tone === 'loading' && styles.aiPipelineLoadingChip,
-                        aiPipelineSummary.tone === 'delayed' && styles.aiPipelineDelayedChip
-                      )}>
-                        {aiPipelineSummary.status}
-                      </span>
-                      <span>{aiPipelineSummary.readyCount}/{aiPipelineSummary.totalCount} 완료</span>
-                      <span>{aiPipelineSummary.mode}</span>
-                      <span>{aiPipelineSummary.storageLabel}</span>
-                      <span>{aiPipelineSummary.reportStorageLabel}</span>
-                      <span>{aiPipelineSummary.qdrantLabel}</span>
-                      <button
-                        type="button"
-                        className={styles.aiPipelineRefreshBtn}
-                        onClick={onRefreshAi}
-                        disabled={!onRefreshAi}
-                        aria-label="AI 판단 다시 계산"
-                      >
-                        <RefreshCw size={13} aria-hidden="true" />
-                        새로 계산
-                      </button>
-                    </div>
-                    <p className={styles.aiPipelineHint}>
-                      {stock.name}을 선택하면 차트·재무·뉴스를 먼저 불러오고, Ollama 상담과 장후 리포트는 뒤에서 이어 붙입니다.
-                    </p>
-                    {aiExecutionSteps.map((step) => (
-                      <div className={styles.aiPipelineRow} key={step.label}>
-                        <span className={clsx(
-                          styles.aiPipelineDot,
-                          step.state === 'ready' && styles.aiPipelineReady,
-                          step.state === 'loading' && styles.aiPipelineLoading,
-                          step.state === 'delayed' && styles.aiPipelineDelayed
-                        )} />
-                        <div>
-                          <strong>
-                            {step.label}
-                            <small>{pipelineStateLabel(step.state)}</small>
-                          </strong>
-                          <em>{step.value}</em>
-                          <p>{step.detail}</p>
-                          {step.meta?.length > 0 && (
-                            <div className={styles.aiPipelineMeta} aria-label={`${step.label} 실행 근거`}>
-                              {step.meta.filter(Boolean).slice(0, 2).map((item) => (
-                                <span key={`${step.label}-${item}`}>{item}</span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>}
                 </div>
                 <div className={styles.stockList}>
                   {normalizedStockOptions.map((option) => {
@@ -890,6 +825,34 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
         </div>
       </div>
 
+      <div className={styles.chartWrapper}>
+        <TradingViewPriceChart
+          stock={stock}
+          interval={interval}
+          chartData={chartData}
+          zones={zones}
+          events={events}
+          indicatorSnapshot={indicatorSnapshot}
+          ai={ai}
+          learningMode={learningMode}
+          onTermClick={onTermClick}
+          focusMode={aiCardExpanded}
+          onOpenPortfolio={onOpenPortfolio}
+          onRefreshAi={onRefreshAi}
+          briefArchive={summaryArchive}
+          briefLoading={summaryArchiveLoading}
+          onReloadBrief={() => {
+            setSummaryArchiveLoading(true);
+            const targetYear = calendarDate.getFullYear();
+            const targetMonth = calendarDate.getMonth() + 1;
+            loadSummaryArchive(targetYear, targetMonth)
+              .then((archive) => setSummaryArchive(archive))
+              .catch(() => setSummaryArchive({ latest: null, list: [], source: '불러오기 실패' }))
+              .finally(() => setSummaryArchiveLoading(false));
+          }}
+        />
+      </div>
+
       {/* Hero Stock Info */}
       <div className={styles.heroInfo}>
         <div className={styles.heroCode}>{stock.code}</div>
@@ -898,6 +861,94 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
           {stock.changeRate}
         </div>
       </div>
+
+      {/* 하단 정중앙 세련된 AI로 학습하기 버튼 */}
+      <div className={styles.learningFloatingBox}>
+        <button
+          type="button"
+          className={styles.learningFloatingBtn}
+          onClick={() => setLearningModalOpen(true)}
+          aria-label="AI로 주식 용어 학습하기"
+        >
+          <span>💡</span> AI로 학습하기
+        </button>
+      </div>
+
+      {/* AI 주식용어 학습 모달창 포탈 */}
+      {learningModalOpen && typeof document !== 'undefined' && createPortal((
+        <div className={styles.briefModalLayer} role="presentation" onClick={() => {
+          setLearningModalOpen(false);
+          setLearningExplanation('');
+          setSelectedTerm('');
+        }}>
+          <section
+            className={styles.learningModal}
+            role="dialog"
+            aria-modal="true"
+            aria-label="로컬 AI 주식 용어 학습관"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={styles.briefModalHeader}>
+              <div>
+                <span>로컬 AI 학습관</span>
+                <strong>쉽게 배우는 주식 용어 사전</strong>
+              </div>
+              <button type="button" onClick={() => {
+                setLearningModalOpen(false);
+                setLearningExplanation('');
+                setSelectedTerm('');
+              }} aria-label="학습관 닫기">닫기</button>
+            </div>
+            <div className={styles.learningModalBody}>
+              <p className={styles.learningIntro}>
+                이해하기 어려운 주식 용어를 클릭해보세요. 사용자 PC에 설치된 <strong>Ollama AI</strong>가 초보자용 눈높이로 지능적 설명해 줍니다.
+              </p>
+
+              <div className={styles.termButtonGrid}>
+                {[
+                  { name: '5일선', desc: '1주평균' },
+                  { name: '20일선', desc: '1달평균' },
+                  { name: '60일선', desc: '3달평균' },
+                  { name: '지지선', desc: '하락방어' },
+                  { name: '저항선', desc: '돌파목표' },
+                  { name: '골든크로스', desc: '상승전환' },
+                  { name: '거래량', desc: '매매수량' },
+                  { name: '캔들차트', desc: '하루변동' }
+                ].map((term) => (
+                  <button
+                    type="button"
+                    key={term.name}
+                    className={clsx(styles.termBubbleBtn, selectedTerm === term.name && styles.termBubbleBtnActive)}
+                    onClick={() => handleAskAiForTerm(term.name)}
+                  >
+                    <strong>{term.name}</strong>
+                    <span>({term.desc})</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className={styles.learningResultBox}>
+                {loadingTerm ? (
+                  <div className={styles.learningSpinnerBox}>
+                    <div className={styles.spinner} />
+                    <span>로컬 AI 비서가 '{selectedTerm}'의 뜻을 분석하여 불러오는 중...</span>
+                  </div>
+                ) : learningExplanation ? (
+                  <div className={styles.learningSuccessBox}>
+                    <h4>💡 AI 설명: {selectedTerm}</h4>
+                    <p className={styles.learningExplanationText}>{learningExplanation}</p>
+                  </div>
+                ) : (
+                  <p className={styles.learningPlaceholder}>
+                    위의 용어 버튼 중 하나를 클릭하면 로컬 AI 비서의 실시간 맞춤 강의가 시작됩니다.
+                  </p>
+                )}
+              </div>
+            </div>
+          </section>
+        </div>
+      ), document.body)}
+
       {/* 캘린더 날짜 클릭 시 오픈되는 시장 브리프 모달창 포탈 */}
       {selectedBriefDate && typeof document !== 'undefined' && createPortal((
         <div className={styles.briefModalLayer} role="presentation" onClick={() => setSelectedBriefDate(null)}>

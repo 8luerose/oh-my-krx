@@ -710,3 +710,191 @@
   transform-origin: top right !important;
 }
 
+/* 하단 정중앙 AI로 학습하기 플로팅 박스 */
+.learningFloatingBox {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  pointer-events: auto;
+}
+
+.learningFloatingBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 26px;
+  background: linear-gradient(135deg, #3182f6 0%, #1c5fcb 100%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-round);
+  color: #ffffff;
+  font-size: 0.92rem;
+  font-weight: 850;
+  box-shadow: 0 8px 30px rgba(49, 130, 246, 0.4), 0 2px 4px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.learningFloatingBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(49, 130, 246, 0.5), 0 4px 12px rgba(49, 130, 246, 0.2);
+  filter: brightness(1.1);
+}
+
+.learningFloatingBtn:active {
+  transform: translateY(1px) scale(0.95);
+}
+
+/* AI로 학습하기 용어사전 모달 본문 */
+.learningModal {
+  position: relative;
+  background: rgba(19, 24, 36, 0.98);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-6);
+  width: 580px;
+  max-width: 90vw;
+  box-shadow: var(--shadow-float);
+  animation: springUp var(--transition-normal) forwards;
+  pointer-events: auto;
+}
+
+.learningIntro {
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+  margin-bottom: var(--spacing-5);
+  word-break: keep-all;
+}
+
+.learningIntro strong {
+  color: var(--color-accent);
+  font-weight: 800;
+}
+
+.termButtonGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: var(--spacing-5);
+}
+
+@media (max-width: 600px) {
+  .termButtonGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.termBubbleBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.termBubbleBtn:hover {
+  background: rgba(49, 130, 246, 0.08);
+  border-color: rgba(49, 130, 246, 0.2);
+  transform: translateY(-1px);
+}
+
+.termBubbleBtnActive {
+  background: rgba(49, 130, 246, 0.15) !important;
+  border-color: var(--color-accent) !important;
+  box-shadow: 0 0 12px rgba(49, 130, 246, 0.25);
+}
+
+.termBubbleBtn strong {
+  color: var(--color-text-primary);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.termBubbleBtn span {
+  color: var(--color-text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 750;
+  margin-top: 3px;
+}
+
+.termBubbleBtnActive strong {
+  color: var(--color-accent);
+}
+
+.termBubbleBtnActive span {
+  color: var(--color-accent);
+  opacity: 0.8;
+}
+
+.learningResultBox {
+  min-height: 140px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  word-break: keep-all;
+}
+
+.learningPlaceholder {
+  font-size: 0.82rem;
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+
+.learningSuccessBox {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: springUp var(--transition-fast) forwards;
+}
+
+.learningSuccessBox h4 {
+  color: var(--color-accent);
+  font-size: 0.95rem;
+  font-weight: 850;
+}
+
+.learningExplanationText {
+  color: var(--color-text-primary);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  font-weight: 750;
+}
+
+.learningSpinnerBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 750;
+  text-align: center;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(49, 130, 246, 0.2);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
