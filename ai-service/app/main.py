@@ -4,6 +4,8 @@ from datetime import date
 import hashlib
 import json
 import os
+import threading
+import time
 from typing import Any
 import uuid
 from urllib import error, request
@@ -16,6 +18,8 @@ app = FastAPI(title="kr-stock-daily-brief ai-service", version="0.1.0")
 
 _QDRANT_READY_COLLECTIONS: set[str] = set()
 _QDRANT_EMBEDDING_CACHE: dict[str, list[float]] = {}
+_QDRANT_ASYNC_JOBS: dict[str, float] = {}
+_QDRANT_ASYNC_LOCK = threading.Lock()
 
 
 class ChatRequest(BaseModel):
@@ -377,6 +381,11 @@ def _qdrant_meta_base() -> dict[str, Any]:
         "storedCount": 0,
         "retrievedCount": 0,
         "error": "",
+        "asyncUpsertEnabled": _qdrant_insights_async_upsert_enabled(),
+        "asyncUpsertScheduled": False,
+        "asyncUpsertDeduped": False,
+        "asyncUpsertJobKey": "",
+        "asyncUpsertMessage": "",
     }
 
 
@@ -389,6 +398,102 @@ def _qdrant_skip_meta(reason: str) -> dict[str, Any]:
 
 def _qdrant_insights_sync_enabled() -> bool:
     return os.getenv("QDRANT_INSIGHTS_SYNC_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _qdrant_insights_async_upsert_enabled() -> bool:
+    return os.getenv("QDRANT_INSIGHTS_ASYNC_UPSERT_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _qdrant_async_job_key(documents: list[dict[str, str]], code: str, basis_date: str) -> str:
+    doc_fingerprints = []
+    for doc in documents[:_qdrant_max_documents()]:
+        doc_fingerprints.append({
+            "id": _clean(doc.get("id"), ""),
+            "type": _clean(doc.get("type"), ""),
+            "textHash": hashlib.sha1(_clean(doc.get("text"), "").encode("utf-8")).hexdigest(),
+        })
+    raw = json.dumps({
+        "code": _clean(code, ""),
+        "basisDate": _clean(basis_date, ""),
+        "documents": doc_fingerprints,
+    }, ensure_ascii=False, sort_keys=True)
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()
+
+
+def _qdrant_async_meta(
+    enabled: bool,
+    scheduled: bool = False,
+    deduped: bool = False,
+    job_key: str = "",
+    message: str = "",
+) -> dict[str, Any]:
+    return {
+        "asyncUpsertEnabled": enabled,
+        "asyncUpsertScheduled": scheduled,
+        "asyncUpsertDeduped": deduped,
+        "asyncUpsertJobKey": job_key,
+        "asyncUpsertMessage": message,
+    }
+
+
+def _qdrant_background_upsert(
+    documents: list[dict[str, str]],
+    subject: str,
+    code: str,
+    topic_type: str,
+    basis_date: str,
+) -> None:
+    try:
+        _qdrant_upsert_documents(documents, subject, code, topic_type, basis_date)
+    except Exception:
+        # Background indexing must never change the user-facing AI response.
+        return
+
+
+def _qdrant_schedule_async_upsert(
+    documents: list[dict[str, str]],
+    subject: str,
+    code: str,
+    topic_type: str,
+    basis_date: str,
+) -> dict[str, Any]:
+    enabled = _qdrant_insights_async_upsert_enabled()
+    if not enabled:
+        return _qdrant_async_meta(False, message="QDRANT_INSIGHTS_ASYNC_UPSERT_ENABLED=false")
+    if not _qdrant_enabled():
+        return _qdrant_async_meta(True, message="QDRANT_ENABLED=false")
+    if not documents:
+        return _qdrant_async_meta(True, message="저장할 근거 문서가 없습니다.")
+
+    now = time.time()
+    ttl_seconds = 120.0
+    job_key = _qdrant_async_job_key(documents, code, basis_date)
+    with _QDRANT_ASYNC_LOCK:
+        for key, expires_at in list(_QDRANT_ASYNC_JOBS.items()):
+            if expires_at <= now:
+                _QDRANT_ASYNC_JOBS.pop(key, None)
+        if job_key in _QDRANT_ASYNC_JOBS:
+            return _qdrant_async_meta(
+                True,
+                deduped=True,
+                job_key=job_key,
+                message="같은 종목 근거 저장 작업이 이미 예약되어 있습니다.",
+            )
+        _QDRANT_ASYNC_JOBS[job_key] = now + ttl_seconds
+
+    worker = threading.Thread(
+        target=_qdrant_background_upsert,
+        args=(documents, subject, code, topic_type, basis_date),
+        daemon=True,
+        name="qdrant-insights-upsert",
+    )
+    worker.start()
+    return _qdrant_async_meta(
+        True,
+        scheduled=True,
+        job_key=job_key,
+        message="빠른 응답 후 Qdrant 근거 저장을 백그라운드로 예약했습니다.",
+    )
 
 
 def _qdrant_json(method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -1519,6 +1624,7 @@ def _llm_status(check_runtime: bool = True) -> dict[str, Any]:
             "timeoutSeconds": _qdrant_timeout(),
             "embeddingTimeoutSeconds": _qdrant_embedding_timeout(),
             "insightsSyncEnabled": _qdrant_insights_sync_enabled(),
+            "insightsAsyncUpsertEnabled": _qdrant_insights_async_upsert_enabled(),
         },
     }
 
@@ -3253,18 +3359,21 @@ def ollama_insights(req: ChatRequest):
     subject = _clean(req.stockName or req.topicTitle, "선택한 종목")
     code = _clean(req.stockCode, "")
     basis_date = _clean(req.contextDate, date.today().isoformat())
-    documents = _build_retrieval_documents(req, subject, code, _clean(req.topicType, "stock"), basis_date)
+    topic_type = _clean(req.topicType, "stock")
+    documents = _build_retrieval_documents(req, subject, code, topic_type, basis_date)
+    should_schedule_qdrant_async = False
     if _qdrant_insights_sync_enabled():
         documents, qdrant_meta = _augment_with_qdrant_documents(
             req,
             documents,
             subject,
             code,
-            _clean(req.topicType, "stock"),
+            topic_type,
             basis_date,
         )
     else:
         qdrant_meta = _qdrant_skip_meta("종목 선택 직후 응답 속도를 위해 인사이트 API에서는 Qdrant 동기 검색을 건너뜁니다.")
+        should_schedule_qdrant_async = True
     seed = _fallback_ollama_insights(req, subject, code, basis_date, documents, _ollama_config_meta())
     llm_answer, llm_meta = _call_ollama_llm(
         _build_ollama_insights_prompt(req, subject, code, basis_date, documents, seed),
@@ -3293,6 +3402,8 @@ def ollama_insights(req: ChatRequest):
     response["answer"] = _compose_ollama_answer(subject, code, response)
     response["mode"] = "ollama_llm" if used_llm else "ollama_fallback_rule_based"
     response["retrieval"]["llm"] = {**llm_meta, "used": used_llm}
+    if should_schedule_qdrant_async:
+        qdrant_meta.update(_qdrant_schedule_async_upsert(documents, subject, code, topic_type, basis_date))
     response["retrieval"]["qdrant"] = qdrant_meta
     if used_llm:
         response["limitations"] = [

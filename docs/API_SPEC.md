@@ -1080,6 +1080,13 @@ ai-service의 OpenAI-compatible 또는 Anthropic-compatible LLM 설정 상태를
   "storage": {
     "saved": true,
     "table": "ai_chat_interactions"
+  },
+  "retrieval": {
+    "qdrant": {
+      "skipped": true,
+      "asyncUpsertScheduled": true,
+      "asyncUpsertMessage": "빠른 응답 후 Qdrant 근거 저장을 백그라운드로 예약했습니다."
+    }
   }
 }
 ```
@@ -1089,6 +1096,7 @@ ai-service의 OpenAI-compatible 또는 Anthropic-compatible LLM 설정 상태를
 - 매수/매도 지시가 아니라 조건형 의견만 제공한다.
 - `newsSentiment.nextTradingDay` 확률은 이벤트/뉴스 후보 기반 참고 지표이며 투자 성과를 보장하지 않는다.
 - `retrieval.documents`에는 `news-headline-*` 문서가 포함될 수 있으며, 이는 국내 뉴스 헤드라인 후보가 Ollama 프롬프트 근거로 들어갔음을 뜻한다.
+- 기본값에서는 빠른 종목 선택 응답을 위해 `retrieval.qdrant.skipped=true`가 될 수 있다. 이때 `asyncUpsertScheduled=true`이면 Qdrant 검색은 건너뛰었지만 같은 근거 문서 저장은 백그라운드로 예약된 상태다.
 - 응답 생성 기록은 `/api/ai/chat`과 동일하게 `ai_chat_interactions`에 감사 로그로 저장된다.
 - 로컬 Ollama를 쓰려면 `OLLAMA_BASE_URL`, `OLLAMA_MODEL`을 지정한다.
 

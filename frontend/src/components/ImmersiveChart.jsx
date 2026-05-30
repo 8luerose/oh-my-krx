@@ -182,7 +182,9 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
       || (insights?.storage?.saved ? '상담 DB 저장' : hasAdvice ? '상담 저장 확인 필요' : '저장 전');
     const qdrantLabel = insights?.qdrant?.enabled && !insights.qdrant?.skipped
       ? `Qdrant ${insights.qdrant.retrievedCount || 0}개`
-      : '빠른 AI 응답';
+      : insights?.qdrant?.asyncUpsertScheduled
+        ? 'Qdrant 저장 중'
+        : insights?.qdrant?.asyncUpsertDeduped ? 'Qdrant 저장 대기' : '빠른 AI 응답';
     const reportStorageLabel = ai?.marketReport?.runtimeCache?.label
       || (ai?.marketReport?.storage?.cached ? '장후 DB 재사용'
         : ai?.marketReport?.storage?.saved ? '장후 DB 저장'
@@ -254,7 +256,11 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
             : report ? '장후 결과 반영'
             : marketReportStatus === 'loading' ? '장후 확인 중'
               : marketReportStatus === 'unavailable' ? '장후 리포트 지연' : '장후 대기'),
-      qdrantLabel: qdrant?.enabled && !qdrant?.skipped ? `Qdrant ${qdrant.retrievedCount || 0}개` : '빠른 AI 응답',
+      qdrantLabel: qdrant?.enabled && !qdrant?.skipped
+        ? `Qdrant ${qdrant.retrievedCount || 0}개`
+        : qdrant?.asyncUpsertScheduled
+          ? 'Qdrant 저장 중'
+          : qdrant?.asyncUpsertDeduped ? 'Qdrant 저장 대기' : '빠른 AI 응답',
       tone: hasLoading ? 'loading' : hasDelayed ? 'delayed' : readyCount === aiExecutionSteps.length ? 'ready' : 'waiting'
     };
   }, [ai, aiExecutionSteps]);

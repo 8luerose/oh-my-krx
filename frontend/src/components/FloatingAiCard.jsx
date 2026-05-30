@@ -136,7 +136,14 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
       : '벡터 검색';
   const qdrantLabel = qdrant?.enabled && !qdrant?.skipped
     ? `Qdrant ${qdrantModeLabel} ${qdrant.retrievedCount || 0}개 · 저장 ${qdrant.storedCount || 0}개`
-    : '';
+    : qdrant?.asyncUpsertScheduled
+      ? 'Qdrant 근거 저장 중'
+      : qdrant?.asyncUpsertDeduped
+        ? 'Qdrant 근거 저장 대기'
+        : '';
+  const qdrantNotice = qdrant?.enabled && !qdrant?.skipped
+    ? `${qdrantLabel}. 비슷한 차트·뉴스 근거를 벡터 검색으로 함께 참고합니다.`
+    : `${qdrantLabel}. 응답 속도를 위해 검색은 건너뛰고 근거 문서 저장만 뒤에서 진행합니다.`;
   const insightRuntime = insights?.runtimeCache || null;
   const reportRuntime = ai.marketReport?.runtimeCache || null;
   const ollamaStatus = ai.ollamaInsightsStatus
@@ -179,7 +186,11 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
     reportRuntimeLabelText,
     compactStorageChip(insights?.storage || ai.storage),
     compactStorageChip(ai.marketReport?.storage),
-    qdrant?.enabled && !qdrant?.skipped ? `Qdrant 근거 ${qdrant.retrievedCount || 0}개` : ''
+    qdrant?.enabled && !qdrant?.skipped
+      ? `Qdrant 근거 ${qdrant.retrievedCount || 0}개`
+      : qdrant?.asyncUpsertScheduled
+        ? 'Qdrant 저장 중'
+        : qdrant?.asyncUpsertDeduped ? 'Qdrant 저장 대기' : ''
   ].filter(Boolean);
   const marketDashboard = ai.marketReport?.marketDashboard || null;
   const topGainer = marketDashboard?.topGainer || null;
@@ -276,7 +287,7 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
           {qdrantLabel && (
             <div className={styles.storageNotice}>
               <Database size={15} />
-              <span>{qdrantLabel}. 비슷한 차트·뉴스 근거를 벡터 검색으로 함께 참고합니다.</span>
+              <span>{qdrantNotice}</span>
             </div>
           )}
 

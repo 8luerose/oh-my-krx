@@ -207,6 +207,7 @@ Copy `.env.example` to `.env` and adjust values for your environment.
 | `QDRANT_TIMEOUT_SECONDS` | No | Qdrant HTTP timeout. Default: `2.5` |
 | `QDRANT_EMBEDDING_TIMEOUT_SECONDS` | No | Ollama embedding timeout for Qdrant vectorization before hash fallback. Default: `2` |
 | `QDRANT_INSIGHTS_SYNC_ENABLED` | No | Run Qdrant upsert/search inside `/api/ai/ollama/insights`. Default: `false` so stock selection shows the local LLM card faster |
+| `QDRANT_INSIGHTS_ASYNC_UPSERT_ENABLED` | No | Store `/api/ai/ollama/insights` grounding documents in Qdrant after the fast response path starts. Default: `true` |
 | `LLM_PROVIDER` | No | `ollama`, `anthropic_compatible`, `openai_compatible`, `anthropic`, `openai`, or `auto`. Docker default is `ollama` |
 | `LLM_MODEL` | No | OpenAI-compatible model name |
 | `LLM_BASE_URL` | No | OpenAI-compatible API base URL |
@@ -279,7 +280,7 @@ Docker 내부 Ollama를 쓰려면 `docker compose --profile ollama up -d ollama`
 
 `make ollama-up`은 Docker Ollama 컨테이너를 올리고, `make ollama-pull OLLAMA_MODEL=llama3.1:latest`는 컨테이너 안에 모델을 내려받는다. `/api/ai/status` 또는 `make ollama-status`에서 `provider`, `configured`, `model`, `baseUrl`, `timeoutSeconds`, `jsonTimeoutSeconds`, `runtime.reachable`, `runtime.modelAvailable`을 확인한다. live LLM이 느리거나 실패하면 `/api/ai/chat`과 `/api/ai/ollama/insights`는 규칙형 근거 기반 응답으로 돌아간다.
 
-종목 선택 직후 뜨는 `/api/ai/ollama/insights`는 사용자 체감 속도가 우선이라 기본값에서 Qdrant 동기 검색을 건너뛴다. 전체 RAG 근거 저장/검색은 `/api/ai/chat` 경로에서 유지되며, 인사이트 경로까지 동기 검색하려면 `QDRANT_INSIGHTS_SYNC_ENABLED=true`로 바꾼다.
+종목 선택 직후 뜨는 `/api/ai/ollama/insights`는 사용자 체감 속도가 우선이라 기본값에서 Qdrant 동기 검색을 건너뛴다. 대신 `QDRANT_INSIGHTS_ASYNC_UPSERT_ENABLED=true`이면 응답 생성 뒤 같은 근거 문서를 Qdrant에 백그라운드 저장한다. 전체 RAG 근거 저장/검색은 `/api/ai/chat` 경로에서 유지되며, 인사이트 경로까지 동기 검색하려면 `QDRANT_INSIGHTS_SYNC_ENABLED=true`로 바꾼다.
 
 ---
 
