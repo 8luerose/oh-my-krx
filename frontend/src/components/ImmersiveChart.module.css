@@ -958,3 +958,97 @@
   margin-top: var(--spacing-4);
 }
 
+/* 누락된 모달 필수 레이아웃 스타일 탑재 */
+.briefModalLayer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(10, 13, 20, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn var(--transition-fast) forwards;
+}
+
+.briefModal {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  width: 90%;
+  max-width: 580px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-float);
+  animation: springUp var(--transition-normal) forwards;
+  overflow: hidden;
+}
+
+.briefModalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-5) var(--spacing-6);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.briefModalHeader div {
+  display: grid;
+  gap: 4px;
+}
+
+.briefModalHeader span {
+  font-size: 0.76rem;
+  color: var(--color-text-tertiary);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.briefModalHeader strong {
+  font-size: 1.1rem;
+  color: var(--color-text-primary);
+  font-weight: 900;
+}
+
+.briefModalHeader button {
+  padding: 8px 18px;
+  font-size: 0.84rem;
+  font-weight: 850;
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.briefModalHeader button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.briefTextBlock {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-6);
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: inherit;
+}
+
+.briefModalNote {
+  font-size: 0.74rem;
+  color: var(--color-text-tertiary);
+  padding: var(--spacing-4) var(--spacing-6);
+  background: rgba(0, 0, 0, 0.15);
+  border-top: 1px solid var(--color-border);
+  line-height: 1.45;
+}
+

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { RefreshCw } from 'lucide-react';
 import TradingViewPriceChart from './TradingViewPriceChart';
-import { loadSummaryArchive, loadSummaryByDate, searchStocks } from '../services/apiClient';
+import { loadSummaryArchive, loadSummaryByDate, searchStocks, askAiForTerm } from '../services/apiClient';
 import styles from './ImmersiveChart.module.css';
 
 function formatCurrency(value) {
@@ -111,7 +111,6 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
     setLoadingTerm(true);
     setLearningExplanation('');
     try {
-      const { askAiForTerm } = await import('../services/apiClient');
       const ans = await askAiForTerm(termName, stock?.code);
       setLearningExplanation(ans);
     } catch (error) {
