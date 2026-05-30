@@ -122,6 +122,13 @@ function intervalLabel(interval) {
   return '1일';
 }
 
+function personalRiskTone(status) {
+  if (status === 'profit_zone') return 'profit';
+  if (status === 'loss_limit_exceeded' || status === 'loss_zone') return 'loss';
+  if (status === 'missing_average_price' || status === 'not_saved') return 'missing';
+  return 'neutral';
+}
+
 export default function TradingViewPriceChart({
   stock,
   interval = 'daily',
@@ -140,7 +147,8 @@ export default function TradingViewPriceChart({
   const [visibleLayers, setVisibleLayers] = useState({
     ai: true,
     zones: true,
-    events: true
+    events: true,
+    personal: true
   });
 
   const toggleLayer = (key) => {
@@ -202,6 +210,40 @@ export default function TradingViewPriceChart({
       .filter((zone) => Number.isFinite(zone.midPrice))
       .slice(0, 5)
   ), [zones]);
+
+  const personalRisk = useMemo(() => (
+    ai?.ollamaInsights?.stockAdvice?.personalRisk
+      || ai?.portfolioGuidance?.positionDiagnostics
+      || null
+  ), [ai]);
+
+  const personalPriceLines = useMemo(() => {
+    if (!personalRisk || personalRisk.status === 'not_saved') return [];
+    const lines = [];
+    const averagePrice = Number(personalRisk.averagePrice);
+    const stopLossPrice = Number(personalRisk.stopLossPrice);
+    if (Number.isFinite(averagePrice) && averagePrice > 0) {
+      lines.push({
+        key: 'average',
+        label: '내 평균단가',
+        shortLabel: '평단',
+        price: averagePrice,
+        valueText: personalRisk.averagePriceText || formatCurrency(averagePrice),
+        color: '#38bdf8'
+      });
+    }
+    if (Number.isFinite(stopLossPrice) && stopLossPrice > 0) {
+      lines.push({
+        key: 'risk',
+        label: '손실허용선',
+        shortLabel: '손실선',
+        price: stopLossPrice,
+        valueText: personalRisk.stopLossPriceText || formatCurrency(stopLossPrice),
+        color: '#f97316'
+      });
+    }
+    return lines;
+  }, [personalRisk]);
 
   const chartMetrics = useMemo(() => {
     const latest = prepared.rows[prepared.rows.length - 1];
@@ -473,6 +515,11 @@ export default function TradingViewPriceChart({
       if (visibleLayers.zones) {
         zoneSummaries.forEach((zone) => addPriceLine(zone.midPrice, zone.label || 'AI 구간', zone.color, LineStyle.Dotted));
       }
+      if (visibleLayers.personal) {
+        personalPriceLines.forEach((line) => {
+          addPriceLine(line.price, line.label, line.color, line.key === 'average' ? LineStyle.Solid : LineStyle.Dashed);
+        });
+      }
 
       chart.subscribeCrosshairMove((param) => {
       if (!param?.time || !param.point) {
@@ -510,7 +557,7 @@ export default function TradingViewPriceChart({
       disposed = true;
       cleanupChart();
     };
-  }, [dataByTime, events, indicatorSnapshot, prepared, visibleLayers.events, visibleLayers.zones, zoneSummaries]);
+  }, [dataByTime, events, indicatorSnapshot, personalPriceLines, prepared, visibleLayers.events, visibleLayers.personal, visibleLayers.zones, zoneSummaries]);
 
   const latest = prepared.rows[prepared.rows.length - 1];
 
@@ -556,6 +603,16 @@ export default function TradingViewPriceChart({
         >
           <Newspaper size={15} aria-hidden="true" />
           <span>뉴스</span>
+        </button>
+        <button
+          type="button"
+          className={clsx(visibleLayers.personal && styles.layerActive)}
+          onClick={() => toggleLayer('personal')}
+          aria-label="개인 평균단가 레이어"
+          aria-pressed={visibleLayers.personal}
+        >
+          <Target size={15} aria-hidden="true" />
+          <span>내 기준</span>
         </button>
       </div>
       <div className={styles.legend} aria-label="차트 범례">
@@ -640,6 +697,34 @@ export default function TradingViewPriceChart({
             </div>
           </div>
           <small>{aiDecision.modeLabel}</small>
+        </aside>
+      )}
+      {visibleLayers.personal && personalRisk && personalRisk.status !== 'not_saved' && (
+        <aside
+          className={clsx(
+            styles.personalRiskOverlay,
+            personalRiskTone(personalRisk.status) === 'profit' && styles.personalRiskProfit,
+            personalRiskTone(personalRisk.status) === 'loss' && styles.personalRiskLoss,
+            personalRiskTone(personalRisk.status) === 'missing' && styles.personalRiskMissing
+          )}
+          aria-label="차트 개인 평균단가 기준"
+        >
+          <div className={styles.personalRiskTopline}>
+            <span>내 기준</span>
+            <strong>{personalRisk.statusLabel || '개인 조건'}</strong>
+            {personalRisk.profitLossText && <b>{personalRisk.profitLossText}</b>}
+          </div>
+          <p>{personalRisk.summary}</p>
+          {personalPriceLines.length > 0 && (
+            <div className={styles.personalLineList}>
+              {personalPriceLines.map((line) => (
+                <span key={line.key}>
+                  <i style={{ background: line.color }} />
+                  {line.shortLabel} {line.valueText}
+                </span>
+              ))}
+            </div>
+          )}
         </aside>
       )}
       {visibleLayers.zones && zoneSummaries.length > 0 && (
