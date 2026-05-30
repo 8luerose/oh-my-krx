@@ -84,12 +84,46 @@ function zoneColor(type) {
   return '#f59e0b';
 }
 
+function zoneMeta(type) {
+  if (type === 'buy') return { role: '공격', action: '돌파 확인' };
+  if (type === 'split') return { role: '분할', action: '눌림 확인' };
+  if (type === 'sell') return { role: '차익', action: '과열 확인' };
+  if (type === 'risk') return { role: '방어', action: '이탈 확인' };
+  return { role: '대기', action: '방향 확인' };
+}
+
+function zoneRange(zone) {
+  return parsePriceRange(zone?.price);
+}
+
 function zoneMidPrice(zone) {
-  const range = parsePriceRange(zone?.price);
+  const range = zoneRange(zone);
   if (!range) return null;
   const [from, to] = range;
   if (Number.isFinite(from) && Number.isFinite(to)) return (from + to) / 2;
   return Number.isFinite(from) ? from : to;
+}
+
+function zoneRelation(zone, currentPrice) {
+  const close = Number(currentPrice);
+  const [from, to] = zone.range || [];
+  if (!Number.isFinite(close)) {
+    return { label: '현재가 확인', tone: 'neutral', distance: Number.POSITIVE_INFINITY };
+  }
+  const hasFrom = Number.isFinite(from);
+  const hasTo = Number.isFinite(to);
+  if ((!hasFrom || close >= from) && (!hasTo || close <= to)) {
+    return { label: '현재 위치', tone: 'inside', distance: 0 };
+  }
+  if (hasFrom && close < from) {
+    const distance = ((from - close) / close) * 100;
+    return { label: `진입까지 ${formatPercent(distance)}`, tone: 'below', distance };
+  }
+  if (hasTo && close > to) {
+    const distance = ((close - to) / to) * 100;
+    return { label: `상단 초과 ${formatPercent(distance)}`, tone: 'above', distance };
+  }
+  return { label: '범위 확인', tone: 'neutral', distance: Number.POSITIVE_INFINITY };
 }
 
 function markerForEvent(event, compact = false) {
@@ -248,16 +282,35 @@ export default function TradingViewPriceChart({
     return map;
   }, [prepared.rows]);
 
-  const zoneSummaries = useMemo(() => (
-    zones
-      .map((zone) => ({
-        ...zone,
-        midPrice: zoneMidPrice(zone),
-        color: zoneColor(zone.type)
-      }))
+  const zoneSummaries = useMemo(() => {
+    const latestClose = prepared.rows[prepared.rows.length - 1]?.close;
+    return zones
+      .map((zone) => {
+        const range = zoneRange(zone);
+        const meta = zoneMeta(zone.type);
+        const enriched = {
+          ...zone,
+          ...meta,
+          range,
+          midPrice: zoneMidPrice(zone),
+          color: zoneColor(zone.type)
+        };
+        return {
+          ...enriched,
+          relation: zoneRelation(enriched, latestClose)
+        };
+      })
       .filter((zone) => Number.isFinite(zone.midPrice))
-      .slice(0, 5)
-  ), [zones]);
+      .slice(0, 5);
+  }, [prepared.rows, zones]);
+
+  const zoneMapSummary = useMemo(() => {
+    if (!zoneSummaries.length) return '';
+    const current = zoneSummaries.find((zone) => zone.relation?.tone === 'inside');
+    if (current) return `현재 ${current.label || 'AI 구간'}`;
+    const nearest = [...zoneSummaries].sort((a, b) => (a.relation?.distance ?? 999) - (b.relation?.distance ?? 999))[0];
+    return nearest ? `가까운 구간 ${nearest.label || 'AI 구간'}` : '가격 구간 확인';
+  }, [zoneSummaries]);
 
   const personalRisk = useMemo(() => (
     ai?.ollamaInsights?.stockAdvice?.personalRisk
@@ -920,11 +973,27 @@ export default function TradingViewPriceChart({
       )}
       {visibleLayers.zones && zoneSummaries.length > 0 && (
         <div className={styles.zoneRail} aria-label="AI 거래 구간">
+          <div className={styles.zoneRailHeader}>
+            <span>AI 가격 구간 지도</span>
+            <strong>{zoneMapSummary}</strong>
+          </div>
           {zoneSummaries.map((zone) => (
-            <div key={`${zone.type}-${zone.label}-${zone.price}`} className={styles.zoneItem}>
+            <div
+              key={`${zone.type}-${zone.label}-${zone.price}`}
+              className={clsx(
+                styles.zoneItem,
+                zone.relation?.tone === 'inside' && styles.zoneInside,
+                zone.relation?.tone === 'below' && styles.zoneBelow,
+                zone.relation?.tone === 'above' && styles.zoneAbove
+              )}
+            >
               <i style={{ background: zone.color }} />
-              <span>{zone.label || 'AI 구간'}</span>
+              <div>
+                <span>{zone.label || 'AI 구간'}</span>
+                <em>{zone.role} · {zone.action}</em>
+              </div>
               <strong>{zone.price || formatCurrency(zone.midPrice)}</strong>
+              <b>{zone.relation?.label || '가격 확인'}</b>
             </div>
           ))}
         </div>
