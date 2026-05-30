@@ -1615,3 +1615,83 @@
     height: 42px;
   }
 }
+
+@media (min-width: 1121px) {
+  .container:not([open]) {
+    width: min(560px, calc(100vw - 640px));
+    max-height: 118px;
+  }
+
+  .container:not([open]) .header {
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .container:not([open]) .iconWrapper {
+    width: 38px;
+    height: 38px;
+  }
+
+  .container:not([open]) .direction {
+    font-size: 0.72rem;
+    margin-bottom: 1px;
+  }
+
+  .container:not([open]) .conclusion {
+    display: -webkit-box;
+    font-size: 0.82rem;
+    line-height: 1.28;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .container:not([open]) .miniOllamaStrip {
+    flex-wrap: nowrap;
+    gap: 4px;
+    max-height: 24px;
+    overflow: hidden;
+  }
+
+  .container:not([open]) .miniOllamaStrip span {
+    flex: 0 1 auto;
+    max-width: 132px;
+    font-size: 0.66rem;
+    overflow: hidden;
+    padding: 3px 6px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .container:not([open]) .toggleBtn {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1120px) {
+  .container:not([open]) {
+    width: min(460px, calc(100vw - 460px));
+    max-height: 108px;
+  }
+
+  .container:not([open]) .conclusion {
+    display: -webkit-box;
+    font-size: 0.78rem;
+    line-height: 1.26;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .container:not([open]) .miniOllamaStrip {
+    flex-wrap: nowrap;
+    max-height: 22px;
+    overflow: hidden;
+  }
+
+  .container:not([open]) .miniOllamaStrip span {
+    max-width: 112px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
