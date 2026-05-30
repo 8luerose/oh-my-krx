@@ -360,6 +360,20 @@ function normalizePersonalRisk(value) {
   };
 }
 
+function normalizePersonalAdjustment(value) {
+  if (!value || typeof value !== "object") return null;
+  return {
+    ...value,
+    applied: Boolean(value.applied),
+    sourceDecision: humanizeText(value.sourceDecision || ""),
+    finalDecision: humanizeText(value.finalDecision || ""),
+    statusLabel: humanizeText(value.statusLabel || ""),
+    summary: humanizeText(value.summary || ""),
+    actionLine: humanizeText(value.actionLine || ""),
+    tone: ["positive", "negative", "neutral"].includes(value.tone) ? value.tone : "neutral"
+  };
+}
+
 function normalizePortfolioGuidance(value) {
   if (!value || typeof value !== "object") return null;
   return {
@@ -441,7 +455,7 @@ function normalizeScoreBreakdown(breakdown = {}) {
 
 function normalizeDecisionFactors(items) {
   if (!Array.isArray(items)) return [];
-  return items.slice(0, 4).map((item) => ({
+  return items.slice(0, 5).map((item) => ({
     label: humanizeText(item?.label || "근거"),
     state: humanizeText(item?.state || "확인"),
     tone: ["positive", "negative", "neutral"].includes(item?.tone) ? item.tone : "neutral",
@@ -479,6 +493,7 @@ function normalizeOllamaInsights(remote = {}) {
       decision: humanizeText(advice.decision || "관망"),
       summary: humanizeText(advice.summary || "조건 확인이 필요합니다."),
       personalRisk: normalizePersonalRisk(advice.personalRisk),
+      personalAdjustment: normalizePersonalAdjustment(advice.personalAdjustment),
       buyConditions: normalizeTextList(advice.buyConditions),
       watchConditions: normalizeTextList(advice.watchConditions),
       sellConditions: normalizeTextList(advice.sellConditions),

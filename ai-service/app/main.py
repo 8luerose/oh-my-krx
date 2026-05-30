@@ -1798,6 +1798,99 @@ def _decision_from_inputs(score: int, position: str) -> str:
     return "관망"
 
 
+def _adjust_decision_for_personal_context(decision: str, personal: dict[str, Any] | None) -> tuple[str, dict[str, Any]]:
+    if not isinstance(personal, dict):
+        return decision, {}
+
+    status = _clean(personal.get("status"), "")
+    status_label = _clean(personal.get("statusLabel"), "개인 조건")
+    action_line = _clean(personal.get("actionLine"), "")
+    profit_loss = _clean(personal.get("profitLossText"), "")
+    average_price = _clean(personal.get("averagePriceText"), "")
+    current_price = _clean(personal.get("currentPriceText"), "")
+
+    if status in {"not_saved", ""}:
+        return decision, {
+            "applied": False,
+            "sourceDecision": decision,
+            "finalDecision": decision,
+            "statusLabel": status_label,
+            "summary": "포트폴리오 샌드박스에 담기 전이라 개인 평균단가와 손실허용 기준은 아직 반영되지 않았습니다.",
+            "actionLine": action_line or "개인 조건 반영이 필요하면 샌드박스에 평균단가와 손실허용을 저장합니다.",
+            "tone": "neutral",
+        }
+
+    if status == "loss_limit_exceeded":
+        final_decision = "매도 검토"
+        summary = (
+            f"개인 조건상 {status_label}입니다. 현재 {current_price}, 평균단가 {average_price}, 손익 {profit_loss}라서 "
+            "새 매수보다 손실 확대 방지 기준을 먼저 적용했습니다."
+        )
+        return final_decision, {
+            "applied": decision != final_decision,
+            "sourceDecision": decision,
+            "finalDecision": final_decision,
+            "statusLabel": status_label,
+            "summary": summary,
+            "actionLine": action_line,
+            "tone": "negative",
+        }
+
+    if status == "loss_zone" and decision == "매수 검토":
+        final_decision = "관망"
+        summary = (
+            f"개인 조건상 {status_label}입니다. 현재 손익 {profit_loss}라서 추가 매수보다 "
+            "20일선 회복과 악재 해소 확인을 우선했습니다."
+        )
+        return final_decision, {
+            "applied": True,
+            "sourceDecision": decision,
+            "finalDecision": final_decision,
+            "statusLabel": status_label,
+            "summary": summary,
+            "actionLine": action_line,
+            "tone": "negative",
+        }
+
+    if status == "profit_zone" and decision == "매수 검토":
+        final_decision = "관망"
+        summary = (
+            f"개인 조건상 {status_label}입니다. 수익 구간에서는 새 매수보다 일부 수익 보호와 "
+            "저항선 돌파 유지 여부를 먼저 보도록 조정했습니다."
+        )
+        return final_decision, {
+            "applied": True,
+            "sourceDecision": decision,
+            "finalDecision": final_decision,
+            "statusLabel": status_label,
+            "summary": summary,
+            "actionLine": action_line,
+            "tone": "positive",
+        }
+
+    if status == "missing_average_price":
+        summary = "평균단가가 없어 실제 손익 기준 조정은 제한됩니다. 차트와 뉴스 판단을 유지하되 리스크 문구를 보수적으로 표시합니다."
+        return decision, {
+            "applied": False,
+            "sourceDecision": decision,
+            "finalDecision": decision,
+            "statusLabel": status_label,
+            "summary": summary,
+            "actionLine": action_line,
+            "tone": "neutral",
+        }
+
+    return decision, {
+        "applied": False,
+        "sourceDecision": decision,
+        "finalDecision": decision,
+        "statusLabel": status_label,
+        "summary": _clean(personal.get("summary"), "개인 조건은 확인됐지만 최종 판단을 바꿀 정도의 손익 신호는 아닙니다."),
+        "actionLine": action_line,
+        "tone": "neutral",
+    }
+
+
 def _decision_reason(decision: str, score: int, ma20: dict[str, str]) -> str:
     if decision == "매수 검토":
         return (
@@ -1821,6 +1914,7 @@ def _decision_factor_breakdown(
     ma20: dict[str, str],
     probabilities: dict[str, int],
     fundamentals: dict[str, Any],
+    personal: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
     position = _clean(ma20.get("position"), "")
     if position in {"above", "near"}:
@@ -1852,7 +1946,7 @@ def _decision_factor_breakdown(
     else:
         finance_state, finance_tone = "반영", "positive"
 
-    return [
+    factors = [
         {
             "label": "차트",
             "state": chart_state,
@@ -1878,6 +1972,24 @@ def _decision_factor_breakdown(
             "summary": f"다음 거래일 참고 확률은 상승 {probabilities['up']}%, 하락 {probabilities['down']}%입니다.",
         },
     ]
+    if isinstance(personal, dict):
+        status = _clean(personal.get("status"), "")
+        status_label = _clean(personal.get("statusLabel"), "개인 조건")
+        if status in {"loss_limit_exceeded", "loss_zone"}:
+            personal_tone = "negative"
+        elif status == "profit_zone":
+            personal_tone = "positive"
+        else:
+            personal_tone = "neutral"
+        factors.append(
+            {
+                "label": "개인 조건",
+                "state": status_label,
+                "tone": personal_tone,
+                "summary": _compact(personal.get("summary"), 110),
+            }
+        )
+    return factors
 
 
 def _after_market_comment(subject: str, decision: str, score: int, probabilities: dict[str, int], summary_points: list[str]) -> str:
@@ -2106,7 +2218,7 @@ def _fallback_ollama_insights(
     probabilities = _probabilities_from_score(score)
     ma20 = _ma20_context(req)
     position = ma20["position"]
-    decision = _decision_from_inputs(score, position)
+    base_decision = _decision_from_inputs(score, position)
     decision_summary = req.currentDecisionSummary if isinstance(req.currentDecisionSummary, dict) else {}
     headlines = _headlines_from_context(events, news_headlines)
     headline_analysis = _headline_analysis_items(news_headlines)
@@ -2114,6 +2226,7 @@ def _fallback_ollama_insights(
     portfolio_context = req.portfolioContext if isinstance(req.portfolioContext, dict) else None
     portfolio = _portfolio_guidance(portfolio_context)
     personal_diagnostics = _personal_position_diagnostics(req, portfolio_context)
+    decision, personal_adjustment = _adjust_decision_for_personal_context(base_decision, personal_diagnostics)
     fundamentals = _fundamental_guidance(req.fundamentalSnapshot if isinstance(req.fundamentalSnapshot, dict) else None)
     summary_points = _summary_points(req.summary)
     fallback_reason = _friendly_llm_fallback_reason(llm_meta.get("fallbackReason"))
@@ -2129,6 +2242,12 @@ def _fallback_ollama_insights(
         personal_diagnostics,
         fundamentals,
     )
+    advice_summary = _clean(
+        decision_summary.get("summary") if isinstance(decision_summary, dict) else "",
+        decision_reason,
+    )
+    if personal_adjustment.get("applied"):
+        advice_summary = f"{personal_adjustment['summary']} {advice_summary}"
 
     return {
         "mode": "ollama_fallback_rule_based",
@@ -2144,11 +2263,9 @@ def _fallback_ollama_insights(
         "stockAdvice": {
             "title": "이 종목 지금 사도 되나요?",
             "decision": decision,
-            "summary": _clean(
-                decision_summary.get("summary") if isinstance(decision_summary, dict) else "",
-                decision_reason,
-            ),
+            "summary": advice_summary,
             "personalRisk": personal_diagnostics,
+            "personalAdjustment": personal_adjustment,
             "buyConditions": [
                 _clean(decision_summary.get("buyReviewCondition") if isinstance(decision_summary, dict) else "", f"현재가 {ma20['close']}가 20일선 {ma20['ma20']} 위에서 마감하고 거래량이 늘어야 합니다."),
                 "호재 후보가 가격 반응과 거래량으로 확인될 때만 검토합니다.",
@@ -2163,13 +2280,14 @@ def _fallback_ollama_insights(
                 "악재 후보가 늘고 반등 거래량이 약하면 손실 확대를 막는 기준을 먼저 세웁니다.",
             ],
             "riskNotes": [
+                personal_adjustment.get("summary", ""),
                 personal_diagnostics["summary"],
                 personal_diagnostics["actionLine"],
                 portfolio["summary"],
                 fundamentals["summary"],
             ][:4],
         },
-        "decisionFactors": _decision_factor_breakdown(decision, score, ma20, probabilities, fundamentals),
+        "decisionFactors": _decision_factor_breakdown(decision, score, ma20, probabilities, fundamentals, personal_diagnostics),
         "newsSentiment": {
             "title": "뉴스 감성 기반 단기 방향 예측",
             "score": score,
@@ -2287,11 +2405,20 @@ def _merge_insight_dict(base: dict[str, Any], generated: dict[str, Any] | None) 
     for key in ["stockAdvice", "newsSentiment", "afterMarketReport", "beginnerCoach"]:
         if isinstance(generated.get(key), dict):
             current = merged.get(key) if isinstance(merged.get(key), dict) else {}
+            personal_applied = bool(
+                key == "stockAdvice"
+                and isinstance(current.get("personalAdjustment"), dict)
+                and current.get("personalAdjustment", {}).get("applied")
+            )
             next_value = {**current}
             for field, value in generated[key].items():
                 if key == "newsSentiment" and field in {"score", "label", "nextTradingDay"}:
                     continue
                 if key == "stockAdvice" and field == "personalRisk":
+                    continue
+                if key == "stockAdvice" and field == "personalAdjustment":
+                    continue
+                if key == "stockAdvice" and field == "decision" and personal_applied:
                     continue
                 if key == "stockAdvice" and field == "decision" and value not in {"매수 검토", "관망", "매도 검토"}:
                     continue
@@ -2427,10 +2554,12 @@ def _build_ollama_insights_prompt(
     seed_sentiment = seed.get("newsSentiment") if isinstance(seed.get("newsSentiment"), dict) else {}
     seed_report = seed.get("afterMarketReport") if isinstance(seed.get("afterMarketReport"), dict) else {}
     seed_coach = seed.get("beginnerCoach") if isinstance(seed.get("beginnerCoach"), dict) else {}
+    seed_personal = seed_advice.get("personalAdjustment") if isinstance(seed_advice.get("personalAdjustment"), dict) else {}
     seed_probabilities = seed_sentiment.get("nextTradingDay") if isinstance(seed_sentiment.get("nextTradingDay"), dict) else {}
     seed_summary = "\n".join([
         f"초안 결정: {_clean(seed_advice.get('decision'), '관망')}",
         f"초안 이유: {_compact(seed_advice.get('summary'), 120)}",
+        f"개인 조건 조정: {_clean(seed_personal.get('statusLabel'), '미적용')} / {_compact(seed_personal.get('summary'), 120)}",
         f"뉴스 점수/확률: {_clean(seed_sentiment.get('score'), '0')}점, 상승 {_clean(seed_probabilities.get('up'), '확인')}%, 하락 {_clean(seed_probabilities.get('down'), '확인')}%, 횡보 {_clean(seed_probabilities.get('flat'), '확인')}%",
         f"장후 분위기: {_clean(seed_report.get('mood'), '확인 필요')}",
         f"초보자 코치 초안: {_compact(seed_coach.get('plainSummary'), 120)}",

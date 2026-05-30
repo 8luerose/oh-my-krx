@@ -457,7 +457,7 @@ export default function TradingViewPriceChart({
       title,
       modeLabel: compactText(statusLabel, '근거 기반 AI', 48),
       live: insights?.mode === 'ollama_llm' || ai?.llmUsed,
-      factors: Array.isArray(insights?.decisionFactors) ? insights.decisionFactors.slice(0, 4) : []
+      factors: Array.isArray(insights?.decisionFactors) ? insights.decisionFactors.slice(0, 5) : []
     };
   }, [ai]);
 

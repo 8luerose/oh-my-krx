@@ -110,7 +110,7 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange }) {
   const nextTradingDay = newsSentiment?.nextTradingDay || {};
   const afterMarketReport = insights?.afterMarketReport || {};
   const beginnerCoach = insights?.beginnerCoach || null;
-  const decisionFactors = Array.isArray(insights?.decisionFactors) ? insights.decisionFactors.slice(0, 4) : [];
+  const decisionFactors = Array.isArray(insights?.decisionFactors) ? insights.decisionFactors.slice(0, 5) : [];
   const qdrant = insights?.qdrant || ai.marketReport?.qdrant || null;
   const qdrantModeLabel = qdrant?.embeddingUsed
     ? 'Ollama 의미검색'
@@ -130,6 +130,7 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange }) {
   const reportRuntimeLabelText = reportRuntimeLabel(marketReportStatus, Boolean(ai.marketReport), reportRuntime, reportStorageLabel);
   const reportRuntimeNoteText = reportRuntimeNote(marketReportStatus, Boolean(ai.marketReport), reportRuntime, reportStorageNote);
   const personalRisk = stockAdvice.personalRisk || ai.portfolioGuidance?.positionDiagnostics || null;
+  const personalAdjustment = stockAdvice.personalAdjustment || null;
   const visibleHeadlineCount = newsSentiment?.headlineSignals?.length || 0;
   const adviceDecision = stockAdvice.decision || '관망';
   const adviceSummary = stockAdvice.summary || '차트, 재무, 뉴스, 센티멘트를 합쳐 매수·관망·매도 조건을 정리합니다.';
@@ -341,13 +342,13 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange }) {
                           <b>{personalRisk.statusLabel || '개인 조건 확인'}</b>
                           {personalRisk.profitLossText && <span>{personalRisk.profitLossText}</span>}
                         </div>
-                        <p>{personalRisk.summary}</p>
+                        <p>{personalAdjustment?.applied ? personalAdjustment.summary : personalRisk.summary}</p>
                         <div className={styles.personalRiskMetrics}>
                           {personalRisk.averagePriceText && <span>평단 {personalRisk.averagePriceText}</span>}
                           {personalRisk.currentPriceText && <span>현재 {personalRisk.currentPriceText}</span>}
                           {personalRisk.stopLossPriceText && <span>기준 {personalRisk.stopLossPriceText}</span>}
                         </div>
-                        {personalRisk.actionLine && <em>{personalRisk.actionLine}</em>}
+                        {(personalAdjustment?.actionLine || personalRisk.actionLine) && <em>{personalAdjustment?.actionLine || personalRisk.actionLine}</em>}
                       </div>
                     )}
                   </div>
