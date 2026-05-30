@@ -46,11 +46,12 @@ class PortfolioControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"code":"005930","name":"삼성전자","group":"반도체","rate":1.55,"weight":15}
+                    {"code":"005930","name":"삼성전자","group":"반도체","rate":1.55,"weight":15,"averagePrice":72000,"holdingPeriod":"중기","riskTolerance":"중간"}
                     """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items[0].name").value("삼성전자"))
         .andExpect(jsonPath("$.items[0].weight").value(15))
+        .andExpect(jsonPath("$.items[0].averagePrice").value(72000))
         .andExpect(jsonPath("$.summary.maxWeightStock").value("삼성전자"));
   }
 
@@ -82,6 +83,9 @@ class PortfolioControllerTest {
                 1.55,
                 null,
                 weight,
+                72000.0,
+                "중기",
+                "중간",
                 List.of("동일 섹터 집중 여부를 함께 확인해야 합니다."),
                 List.of("최근 이벤트와 거래량 급증 여부 확인"),
                 List.of(

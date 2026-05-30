@@ -13,8 +13,19 @@ export function useWorkspace(initialCode = '005930', initialInterval = 'daily') 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [portfolioRefreshKey, setPortfolioRefreshKey] = useState(0);
   const requestIdRef = useRef(0);
   const hasLoadedRef = useRef(false);
+
+  useEffect(() => {
+    function handlePortfolioUpdated(event) {
+      if (!event.detail?.code || event.detail.code === activeCode) {
+        setPortfolioRefreshKey((value) => value + 1);
+      }
+    }
+    window.addEventListener('portfolio-sandbox-updated', handlePortfolioUpdated);
+    return () => window.removeEventListener('portfolio-sandbox-updated', handlePortfolioUpdated);
+  }, [activeCode]);
 
   useEffect(() => {
     let mounted = true;
@@ -147,7 +158,7 @@ export function useWorkspace(initialCode = '005930', initialInterval = 'daily') 
     };
     fetchWorkspace();
     return () => { mounted = false; };
-  }, [activeCode, interval]);
+  }, [activeCode, interval, portfolioRefreshKey]);
 
   const changeInterval = useCallback((newInterval) => {
     setInterval((current) => (current === newInterval ? current : newInterval));

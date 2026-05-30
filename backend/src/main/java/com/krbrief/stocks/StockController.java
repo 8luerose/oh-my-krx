@@ -114,6 +114,12 @@ public class StockController {
     return client.news(safeCode, limit);
   }
 
+  @GetMapping("/{code}/fundamentals")
+  public StockFundamentalsDto fundamentals(@PathVariable String code) {
+    String safeCode = validateCode(code);
+    return client.fundamentals(safeCode);
+  }
+
   private static String validateCode(String code) {
     if (code == null || !CODE.matcher(code).matches()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_stock_code");

@@ -7,6 +7,7 @@ import com.krbrief.search.SearchResultDto;
 import com.krbrief.search.SearchService;
 import com.krbrief.stocks.StockChartDto;
 import com.krbrief.stocks.StockEventsDto;
+import com.krbrief.stocks.StockFundamentalsDto;
 import com.krbrief.stocks.StockNewsDto;
 import com.krbrief.stocks.StockResearchClient;
 import com.krbrief.stocks.StockTradeZoneService;
@@ -120,6 +121,7 @@ public class AiChatContextEnricher {
     exposeTopLevel(enriched, context, "chart");
     exposeTopLevel(enriched, context, "events");
     exposeTopLevel(enriched, context, "newsHeadlines");
+    exposeTopLevel(enriched, context, "fundamentalSnapshot");
     exposeTopLevel(enriched, context, "tradeZones");
     exposeTopLevel(enriched, context, "indicatorSnapshot");
     exposeTopLevel(enriched, context, "currentDecisionSummary");
@@ -226,9 +228,27 @@ public class AiChatContextEnricher {
                     })
                 .toList());
       }
+
+      if (!context.containsKey("fundamentalSnapshot")) {
+        StockFundamentalsDto fundamentals = stockResearchClient.fundamentals(stockCode);
+        context.putIfAbsent("fundamentalSnapshot", fundamentalMap(fundamentals));
+      }
     } catch (RuntimeException e) {
       context.putIfAbsent("stockContextWarning", "stock_context_unavailable");
     }
+  }
+
+  private LinkedHashMap<String, Object> fundamentalMap(StockFundamentalsDto fundamentals) {
+    LinkedHashMap<String, Object> out = new LinkedHashMap<>();
+    out.put("code", fundamentals.code());
+    out.put("name", fundamentals.name());
+    out.put("asOf", fundamentals.asOf());
+    out.put("source", fundamentals.source());
+    out.put("valuation", fundamentals.valuation());
+    out.put("market", fundamentals.market());
+    out.put("interpretation", fundamentals.interpretation());
+    out.put("limitations", fundamentals.limitations());
+    return out;
   }
 
   private LinkedHashMap<String, Object> tradeZoneMap(StockTradeZonesDto tradeZones) {
@@ -256,7 +276,7 @@ public class AiChatContextEnricher {
           out.put("storage", "기업 선택은 화면 상태이며 DB 저장이 아닙니다.");
           out.put("guidance", List.of(
               "이 종목을 포트폴리오 샌드박스에 담으면 가상 비중 기준으로 리스크를 더 구체적으로 볼 수 있습니다.",
-              "아직 평균단가, 보유기간, 손실 허용 범위는 입력받지 않으므로 AI 판단은 교육용 조건 확인에 머뭅니다."));
+              "평균단가, 보유기간, 손실 허용 범위를 입력하면 AI가 개인 조건을 참고한 리스크 문장을 만들 수 있습니다."));
           context.put("portfolioContext", out);
         });
   }
@@ -270,10 +290,16 @@ public class AiChatContextEnricher {
     out.put("weight", item.getWeight());
     out.put("recentRate", item.getRate());
     out.put("mentionCount", item.getCount());
+    out.put("averagePrice", item.getAveragePrice());
+    out.put("holdingPeriod", item.getHoldingPeriod());
+    out.put("riskTolerance", item.getRiskTolerance());
     out.put("storage", "portfolio_items 테이블에 저장된 포트폴리오 샌드박스 항목입니다.");
     out.put("guidance", List.of(
-        "AI는 이 가상 비중을 참고해 과도한 집중 여부와 리스크 관리 순서를 더 구체적으로 설명해야 합니다.",
-        "다만 평균단가와 실제 보유수량은 저장되어 있지 않으므로 직접적인 수익률 판단으로 쓰면 안 됩니다."));
+        "AI는 이 가상 비중과 개인 조건을 참고해 과도한 집중 여부와 리스크 관리 순서를 더 구체적으로 설명해야 합니다.",
+        item.getAveragePrice() == null
+            ? "평균단가가 비어 있어 실제 손익 기준 판단은 제한됩니다."
+            : "평균단가 기준 손익분기점과 지지선 이탈 여부를 함께 설명해야 합니다.",
+        "실계좌 수량은 저장하지 않으므로 최종 투자 지시로 쓰면 안 됩니다."));
     return out;
   }
 

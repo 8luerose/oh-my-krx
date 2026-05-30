@@ -30,6 +30,15 @@ public class PortfolioItem {
   @Column(name = "weight", nullable = false)
   private Double weight;
 
+  @Column(name = "average_price")
+  private Double averagePrice;
+
+  @Column(name = "holding_period", length = 40)
+  private String holdingPeriod;
+
+  @Column(name = "risk_tolerance", length = 40)
+  private String riskTolerance;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 
@@ -96,6 +105,30 @@ public class PortfolioItem {
 
   public void setWeight(Double weight) {
     this.weight = weight;
+  }
+
+  public Double getAveragePrice() {
+    return averagePrice;
+  }
+
+  public void setAveragePrice(Double averagePrice) {
+    this.averagePrice = averagePrice;
+  }
+
+  public String getHoldingPeriod() {
+    return holdingPeriod;
+  }
+
+  public void setHoldingPeriod(String holdingPeriod) {
+    this.holdingPeriod = holdingPeriod;
+  }
+
+  public String getRiskTolerance() {
+    return riskTolerance;
+  }
+
+  public void setRiskTolerance(String riskTolerance) {
+    this.riskTolerance = riskTolerance;
   }
 
   public Instant getCreatedAt() {

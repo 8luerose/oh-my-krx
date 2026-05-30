@@ -27,6 +27,18 @@ function setCachedPromise(cache, key, promise, ttlMs) {
   cache.set(key, { promise, expiresAt: Date.now() + ttlMs });
 }
 
+export function invalidateAiCachesForStock(code) {
+  const safeCode = String(code || "").trim();
+  if (!safeCode) return;
+  [aiWorkspaceCache, ollamaInsightsCache].forEach((cache) => {
+    [...cache.keys()].forEach((key) => {
+      if (String(key).startsWith(`${safeCode}:`)) {
+        cache.delete(key);
+      }
+    });
+  });
+}
+
 async function requestJson(path, options = {}) {
   const baseUrl = getRuntimeConfig().API_BASE_URL || DEFAULT_API_BASE_URL;
   const response = await fetch(`${baseUrl}${path}`, {
@@ -355,6 +367,7 @@ function normalizeAi(remoteAi) {
     sources: remoteAi?.sources || fallbackWorkspace.ai.sources,
     sourceTitles: (remoteAi?.sources || structured.sources || []).map((source) => humanizeText(source?.title || source?.type || source)).filter(Boolean),
     portfolioGuidance: structured.portfolioGuidance || null,
+    fundamentalGuidance: structured.fundamentalGuidance || null,
     storage: remoteAi?.storage || null,
     ...runtime
   };
@@ -794,6 +807,9 @@ function normalizePortfolioItem(item = {}) {
     rate: toFiniteNumber(item.rate, 0),
     count: Number.isFinite(Number(item.count)) ? Number(item.count) : null,
     weight: toFiniteNumber(item.weight, 10),
+    averagePrice: Number.isFinite(Number(item.averagePrice)) ? Number(item.averagePrice) : null,
+    holdingPeriod: item.holdingPeriod || "미입력",
+    riskTolerance: item.riskTolerance || "미입력",
     riskNotes: Array.isArray(item.riskNotes) ? item.riskNotes : [],
     nextChecklist: Array.isArray(item.nextChecklist) ? item.nextChecklist : [],
     recentEvents: Array.isArray(item.recentEvents) ? item.recentEvents : []
@@ -829,11 +845,15 @@ export async function upsertPortfolioItem(item) {
   );
 }
 
-export async function updatePortfolioItemWeight(code, weight) {
+export async function updatePortfolioItemWeight(code, itemOrWeight) {
+  const body =
+    typeof itemOrWeight === "object" && itemOrWeight !== null
+      ? itemOrWeight
+      : { weight: itemOrWeight };
   return normalizePortfolio(
     await requestJson(`/api/portfolio/items/${encodeURIComponent(code)}`, {
       method: "PUT",
-      body: JSON.stringify({ weight })
+      body: JSON.stringify(body)
     })
   );
 }

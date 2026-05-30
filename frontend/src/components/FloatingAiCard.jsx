@@ -84,7 +84,7 @@ export default function FloatingAiCard({ ai, events, asOf }) {
           <div className={styles.runtimeNotice}>
             <Info size={15} />
             <span>
-              {ai.modeLabel || '근거 기반 답변'}{ai.llmModel ? ` · ${ai.llmModel}` : ''}. 조건 확인용이며 평균단가와 실제 보유 수량은 아직 반영하지 않습니다.
+              {ai.modeLabel || '근거 기반 답변'}{ai.llmModel ? ` · ${ai.llmModel}` : ''}. 조건 확인용이며 평균단가·보유기간·손실허용은 샌드박스에 저장된 값만 반영합니다.
             </span>
           </div>
 
@@ -357,6 +357,20 @@ export default function FloatingAiCard({ ai, events, asOf }) {
               {ai.portfolioGuidance.checklist?.length > 0 && (
                 <ul className={styles.checklist}>
                   {ai.portfolioGuidance.checklist.slice(0, 4).map((item, index) => (
+                    <li key={`${item}-${index}`}>{item}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {ai.fundamentalGuidance && (
+            <div className={styles.section}>
+              <h4 className={styles.sectionTitle}>재무 스냅샷</h4>
+              <p className={styles.limitNote}>{ai.fundamentalGuidance.summary}</p>
+              {ai.fundamentalGuidance.points?.length > 0 && (
+                <ul className={styles.checklist}>
+                  {ai.fundamentalGuidance.points.slice(0, 4).map((item, index) => (
                     <li key={`${item}-${index}`}>{item}</li>
                   ))}
                 </ul>

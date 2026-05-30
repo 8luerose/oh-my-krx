@@ -25,6 +25,7 @@ class ChatRequest(BaseModel):
     summary: dict[str, Any] | None = None
     chart: dict[str, Any] | None = None
     indicatorSnapshot: dict[str, Any] | None = None
+    fundamentalSnapshot: dict[str, Any] | None = None
     tradeZones: dict[str, Any] | None = None
     currentDecisionSummary: dict[str, Any] | None = None
     portfolioContext: dict[str, Any] | None = None
@@ -174,6 +175,15 @@ def _build_retrieval_documents(req: ChatRequest, subject: str, code: str, topic_
             "title": f"{subject} 이동평균선과 지지/저항 분석",
             "text": _compact(req.indicatorSnapshot),
             "basisDate": _clean(req.indicatorSnapshot.get("basisDate"), basis_date),
+        })
+
+    if req.fundamentalSnapshot:
+        documents.append({
+            "id": "fundamental-snapshot",
+            "type": "fundamental_snapshot",
+            "title": f"{subject} 재무 스냅샷",
+            "text": _compact(req.fundamentalSnapshot),
+            "basisDate": _clean(req.fundamentalSnapshot.get("asOf"), basis_date),
         })
 
     if req.tradeZones:
@@ -448,12 +458,25 @@ def _portfolio_guidance(portfolio: dict[str, Any] | None) -> dict[str, Any]:
     saved = bool(portfolio.get("saved"))
     weight = portfolio.get("weight")
     weight_text = f"{weight}%" if weight is not None else "확인 필요"
+    average_price = _number(portfolio.get("averagePrice"), 0)
+    average_text = f"{average_price:,.0f}원" if average_price > 0 else "미입력"
+    holding_period = _clean(portfolio.get("holdingPeriod"), "미입력")
+    risk_tolerance = _clean(portfolio.get("riskTolerance"), "미입력")
     guidance = portfolio.get("guidance") or []
     if isinstance(guidance, str):
         guidance = [guidance]
     checklist = [str(item) for item in guidance[:3] if str(item).strip()]
     if saved:
-        summary = f"포트폴리오 샌드박스에 저장된 가상 비중 {weight_text}을 참고했습니다."
+        summary = (
+            f"포트폴리오 샌드박스에 저장된 가상 비중 {weight_text}, 평균단가 {average_text}, "
+            f"보유기간 {holding_period}, 손실허용 {risk_tolerance}을 참고했습니다."
+        )
+        if average_price > 0:
+            checklist.append("현재가가 평균단가 대비 손실 허용 범위를 넘는지 먼저 확인하세요.")
+        if risk_tolerance == "낮음":
+            checklist.append("손실 허용이 낮으므로 지지선 이탈 시 신규 매수보다 비중 축소 기준을 먼저 봅니다.")
+        elif risk_tolerance == "높음":
+            checklist.append("손실 허용이 높아도 악재와 하락 거래량이 겹치면 물타기보다 리스크 관리가 우선입니다.")
         checklist.append("비중이 높다면 새 매수보다 리스크 관리 가격과 반대 신호를 먼저 확인하세요.")
     else:
         summary = "기업 선택은 저장되지 않았고, 포트폴리오 샌드박스에 담긴 개인 비중도 아직 없습니다."
@@ -462,7 +485,43 @@ def _portfolio_guidance(portfolio: dict[str, Any] | None) -> dict[str, Any]:
         "saved": saved,
         "summary": summary,
         "weight": weight,
+        "averagePrice": average_price if average_price > 0 else None,
+        "holdingPeriod": holding_period,
+        "riskTolerance": risk_tolerance,
         "checklist": checklist[:4],
+    }
+
+
+def _fundamental_guidance(snapshot: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(snapshot, dict):
+        return {
+            "summary": "재무 스냅샷이 없어 PER/PBR/ROE는 판단 근거에 직접 반영하지 못했습니다.",
+            "points": ["재무가 비어 있으면 차트, 뉴스, 거래량 근거를 더 보수적으로 봅니다."],
+        }
+    valuation = snapshot.get("valuation") if isinstance(snapshot.get("valuation"), dict) else {}
+    market = snapshot.get("market") if isinstance(snapshot.get("market"), dict) else {}
+    per = valuation.get("per")
+    pbr = valuation.get("pbr")
+    roe = valuation.get("roe")
+    market_cap = market.get("marketCap")
+    points: list[str] = []
+    if per is not None:
+        points.append(f"PER {per}배는 이익 대비 가격 부담을 보는 보조 지표입니다.")
+    if pbr is not None:
+        points.append(f"PBR {pbr}배는 장부가치 대비 가격 수준을 보는 보조 지표입니다.")
+    if roe is not None:
+        points.append(f"ROE {roe}%는 수익성이 유지되는지 확인할 때 씁니다.")
+    if market_cap:
+        points.append(f"시가총액 {int(market_cap):,}원 규모를 감안해 변동성 해석을 조정해야 합니다.")
+    interpretations = snapshot.get("interpretation") if isinstance(snapshot.get("interpretation"), list) else []
+    for item in interpretations:
+        text = _clean(item, "")
+        if text and text not in points:
+            points.append(text)
+    summary = " ".join(points[:2]) if points else "재무 지표가 비어 있어 현재는 차트와 뉴스 근거를 우선합니다."
+    return {
+        "summary": summary,
+        "points": points[:4] or ["재무 지표 원천과 최신 공시를 별도로 확인해야 합니다."],
     }
 
 
@@ -591,6 +650,7 @@ def _build_structured_answer(
         (indicator or {}).get("beginnerExplanation") or (decision or {}).get("beginnerExplanation"),
         "초보자는 5일선, 20일선, 60일선의 역할을 나누어 보고 거래량, 지지선, 저항선, 이벤트를 함께 확인해야 합니다.",
     )
+    fundamentals = _fundamental_guidance(req.fundamentalSnapshot if isinstance(req.fundamentalSnapshot, dict) else None)
 
     return {
         "conclusion": conclusion,
@@ -617,10 +677,11 @@ def _build_structured_answer(
         "beginnerChecklist": beginner_checklist,
         "nextChecklist": beginner_checklist,
         "portfolioGuidance": portfolio,
+        "fundamentalGuidance": fundamentals,
         "tradeZones": zones,
         "evidence": evidence[:5],
         "risks": [
-            "포트폴리오 샌드박스 가상 비중 외 평균단가와 투자 기간은 반영하지 않습니다.",
+            "평균단가, 보유기간, 손실허용은 샌드박스에 저장된 값이 있을 때만 참고합니다.",
             "차트 이벤트는 원인 후보이며 확정 원인이 아닙니다.",
             "투자 지시가 아니라 교육용 분석 보조입니다.",
         ],
@@ -1330,6 +1391,7 @@ def _fallback_ollama_insights(
     headlines = _headlines_from_context(events, news_headlines)
     up_reasons, down_risks = _headline_reason_lists(news_headlines)
     portfolio = _portfolio_guidance(req.portfolioContext if isinstance(req.portfolioContext, dict) else None)
+    fundamentals = _fundamental_guidance(req.fundamentalSnapshot if isinstance(req.fundamentalSnapshot, dict) else None)
     summary_points = _summary_points(req.summary)
     fallback_reason = _friendly_llm_fallback_reason(llm_meta.get("fallbackReason"))
     decision_reason = _decision_reason(decision, score, ma20)
@@ -1368,7 +1430,8 @@ def _fallback_ollama_insights(
             ],
             "riskNotes": [
                 portfolio["summary"],
-                "평균단가와 실제 보유 수량은 아직 입력되지 않았으므로 투자 지시로 쓰면 안 됩니다.",
+                fundamentals["summary"],
+                "실계좌 수량은 저장하지 않으므로 투자 지시로 쓰면 안 됩니다.",
             ],
         },
         "newsSentiment": {
@@ -1405,12 +1468,13 @@ def _fallback_ollama_insights(
         "beginnerNotes": [
             "매수/관망/매도는 지시가 아니라 조건형 의견입니다.",
             "확률은 예측 보조이며 실제 수익을 보장하지 않습니다.",
+            fundamentals["points"][0],
             "뉴스 제목만으로 판단하지 말고 가격과 거래량 반응을 같이 봅니다.",
         ],
         "limitations": [
             *([fallback_reason] if fallback_reason else []),
             "국내 뉴스 헤드라인은 이벤트 evidence 후보를 사용하며, 원문 수집 품질에 따라 정확도가 달라집니다.",
-            "재무 데이터는 현재 검색/브리프/학습 용어 수준의 제한된 맥락만 반영합니다.",
+            "재무 데이터는 최신 공시와 데이터 제공 시점에 따라 달라질 수 있습니다.",
         ],
         "retrieval": {
             "documents": documents,
@@ -1511,6 +1575,7 @@ def _ollama_prompt_documents(documents: list[dict[str, str]]) -> list[dict[str, 
         "daily-summary",
         "chart-snapshot",
         "indicator-snapshot",
+        "fundamental-snapshot",
         "trade-zones",
         "current-decision-summary",
         "portfolio-context",
@@ -1948,7 +2013,8 @@ def chat(req: ChatRequest):
 
     limitations = [
         "투자 지시가 아니라 교육용 분석 보조입니다.",
-        "평균단가, 실제 보유 수량, 투자 기간, 손실 허용 범위는 아직 반영하지 않습니다.",
+        "평균단가, 보유기간, 손실 허용 범위는 포트폴리오 샌드박스에 저장된 값이 있을 때만 반영합니다.",
+        "실제 보유 수량과 계좌 정보는 저장하거나 반영하지 않습니다.",
     ]
     if not used_llm:
         limitations.insert(0, "LLM 설정 또는 호출 실패로 규칙형 근거 기반 응답을 제공합니다.")

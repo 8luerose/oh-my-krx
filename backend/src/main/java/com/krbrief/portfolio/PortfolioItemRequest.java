@@ -6,4 +6,7 @@ public record PortfolioItemRequest(
     String group,
     Double rate,
     Long count,
-    Double weight) {}
+    Double weight,
+    Double averagePrice,
+    String holdingPeriod,
+    String riskTolerance) {}

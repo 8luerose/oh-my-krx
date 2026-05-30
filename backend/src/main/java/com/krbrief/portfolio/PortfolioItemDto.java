@@ -9,6 +9,9 @@ public record PortfolioItemDto(
     Double rate,
     Long count,
     Double weight,
+    Double averagePrice,
+    String holdingPeriod,
+    String riskTolerance,
     List<String> riskNotes,
     List<String> nextChecklist,
     List<RecentEventDto> recentEvents) {

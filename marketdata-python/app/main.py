@@ -213,6 +213,46 @@ def _safe_int(value) -> int:
         return 0
 
 
+def _safe_optional_float(value):
+    try:
+        number = float(value)
+        if number != number:
+            return None
+        return round(number, 2)
+    except Exception:
+        return None
+
+
+def _safe_optional_int(value):
+    try:
+        number = int(value)
+        return number if number > 0 else None
+    except Exception:
+        return None
+
+
+def _parse_number_text(value: str | None):
+    if not value:
+        return None
+    cleaned = str(value).replace(",", "").strip()
+    try:
+        number = float(cleaned)
+        if number != number:
+            return None
+        return round(number, 2)
+    except Exception:
+        return None
+
+
+def _naver_main_metric(html: str, label: str):
+    match = re.search(
+        r"<th[^>]*>.*?" + label + r".*?</th>\s*<td[^>]*>\s*([0-9,.-]+)",
+        html,
+        re.IGNORECASE | re.DOTALL,
+    )
+    return _parse_number_text(match.group(1)) if match else None
+
+
 def _naver_fetch(url: str, timeout: int = 5) -> str:
     req = urllib.request.Request(url, headers={"User-Agent": NAVER_UA})
     with urllib.request.urlopen(req, timeout=timeout) as f:
@@ -1654,6 +1694,113 @@ def stock_news(code: str, limit: int = 8):
             "네이버 뉴스 검색 결과의 제목/요약 텍스트 후보입니다.",
             "언론사 원문과 공시 원문 확인 전에는 확정 원인으로 쓰면 안 됩니다.",
         ],
+    }
+
+
+@app.get("/stocks/{code}/fundamentals")
+def stock_fundamentals(code: str):
+    ticker = _normalize_stock_code(code)
+    today_ymd = datetime.now().strftime("%Y%m%d")
+    as_of_ymd, _ = _effective_business_day_or_previous(today_ymd)
+    from_ymd = (datetime.strptime(as_of_ymd, "%Y%m%d").date() - timedelta(days=14)).strftime("%Y%m%d")
+    name = _name(ticker)
+
+    limitations: list[str] = [
+        "PER, PBR, ROE 등 재무 지표는 최근 공시와 데이터 제공 시점에 따라 달라질 수 있습니다.",
+        "재무 지표만으로 매수·매도를 확정하지 말고 차트, 뉴스, 거래량과 함께 봐야 합니다.",
+    ]
+
+    valuation = {
+        "per": None,
+        "pbr": None,
+        "roe": None,
+        "eps": None,
+        "bps": None,
+        "dividendYield": None,
+        "dps": None,
+    }
+    market = {
+        "marketCap": None,
+        "shares": None,
+        "volume": None,
+        "tradingValue": None,
+    }
+    source = "pykrx_market_fundamental"
+
+    try:
+        fundamental_df = stock.get_market_fundamental_by_date(from_ymd, as_of_ymd, ticker)
+        if fundamental_df is not None and not fundamental_df.empty:
+            row = fundamental_df.tail(1).iloc[0]
+            valuation = {
+                "per": _safe_optional_float(row.get("PER")),
+                "pbr": _safe_optional_float(row.get("PBR")),
+                "roe": _safe_optional_float(row.get("ROE")),
+                "eps": _safe_optional_float(row.get("EPS")),
+                "bps": _safe_optional_float(row.get("BPS")),
+                "dividendYield": _safe_optional_float(row.get("DIV")),
+                "dps": _safe_optional_float(row.get("DPS")),
+            }
+    except Exception:
+        source = "pykrx_market_fundamental_partial"
+        limitations.insert(0, "pykrx 재무 지표 조회가 일부 실패해 비어 있는 값이 있을 수 있습니다.")
+
+    if not any(valuation.values()):
+        try:
+            html = _naver_fetch(f"https://finance.naver.com/item/main.naver?code={ticker}", timeout=5)
+            valuation = {
+                "per": _naver_main_metric(html, "PER"),
+                "pbr": _naver_main_metric(html, "PBR"),
+                "roe": _naver_main_metric(html, "ROE"),
+                "eps": _naver_main_metric(html, "EPS"),
+                "bps": _naver_main_metric(html, "BPS"),
+                "dividendYield": None,
+                "dps": _naver_main_metric(html, "DPS"),
+            }
+            if any(valuation.values()):
+                source = "naver_finance_main_fallback"
+                limitations.insert(0, "pykrx 재무 지표가 비어 있어 네이버 종목 종합의 표시 값을 보조로 사용했습니다.")
+        except Exception:
+            limitations.insert(0, "네이버 종목 종합 보조 조회도 실패해 재무 지표가 비어 있을 수 있습니다.")
+
+    try:
+        cap_df = stock.get_market_cap_by_date(from_ymd, as_of_ymd, ticker)
+        if cap_df is not None and not cap_df.empty:
+            row = cap_df.tail(1).iloc[0]
+            market = {
+                "marketCap": _safe_optional_int(row.get("시가총액")),
+                "shares": _safe_optional_int(row.get("상장주식수")),
+                "volume": _safe_optional_int(row.get("거래량")),
+                "tradingValue": _safe_optional_int(row.get("거래대금")),
+            }
+    except Exception:
+        source = "pykrx_market_fundamental_partial"
+        limitations.insert(0, "pykrx 시가총액 조회가 일부 실패해 비어 있는 값이 있을 수 있습니다.")
+
+    interpretation: list[str] = []
+    per = valuation.get("per")
+    pbr = valuation.get("pbr")
+    roe = valuation.get("roe")
+    market_cap = market.get("marketCap")
+    if per is not None:
+        interpretation.append(f"PER {per}배는 이익 대비 가격 부담을 볼 때 쓰는 값입니다.")
+    if pbr is not None:
+        interpretation.append(f"PBR {pbr}배는 장부가치 대비 가격 수준을 볼 때 쓰는 값입니다.")
+    if roe is not None:
+        interpretation.append(f"ROE {roe}%는 자기자본 대비 수익성을 볼 때 쓰는 값입니다.")
+    if market_cap is not None:
+        interpretation.append(f"시가총액 {market_cap:,}원 규모를 함께 봐야 같은 등락률의 의미를 구분할 수 있습니다.")
+    if not interpretation:
+        interpretation.append("재무 지표가 비어 있어 현재는 차트, 뉴스, 거래량 근거를 더 크게 봐야 합니다.")
+
+    return {
+        "code": ticker,
+        "name": name,
+        "asOf": f"{as_of_ymd[0:4]}-{as_of_ymd[4:6]}-{as_of_ymd[6:8]}",
+        "source": source,
+        "valuation": valuation,
+        "market": market,
+        "interpretation": interpretation[:4],
+        "limitations": limitations[:3],
     }
 
 
