@@ -69,6 +69,91 @@
   box-shadow: var(--shadow-float);
 }
 
+.up {
+  color: var(--color-positive);
+}
+
+.down {
+  color: var(--color-negative);
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 420;
+  width: min(280px, calc(100vw - 24px));
+  background: rgba(14, 18, 30, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  padding: 14px;
+  pointer-events: none;
+}
+
+.tooltipHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tooltipHeader span {
+  color: var(--color-text-tertiary);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.tooltipHeader strong {
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.tooltipBulletList,
+.tooltipAiList {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.tooltipBulletList li,
+.tooltipAiList li {
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  font-weight: 750;
+  word-break: keep-all;
+}
+
+.tooltipAi {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(49, 130, 246, 0.18);
+}
+
+.tooltipAiHeader {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.tooltipAiHeader b {
+  color: var(--color-text-primary);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.tooltipAiHeader span {
+  margin-left: auto;
+  color: var(--color-accent);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
 /* Premium Toss "AI Investment Assistant" Sidebar */
 .decisionSidebar {
   background: rgba(19, 24, 36, 0.95);
@@ -259,10 +344,16 @@
   gap: 8px;
   height: 46px;
   border-radius: var(--radius-round);
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   font-weight: 800;
   transition: all var(--transition-fast);
   cursor: pointer;
+  min-width: 0;
+}
+
+.sidebarActionButtons button span {
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .primaryAiAction {
@@ -846,76 +937,47 @@
   font-weight: 750;
 }
 
-/* Sidebar Chart Summary & Legend Card */
-.chartLegendCard {
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px dashed rgba(255, 255, 255, 0.06);
+/* Sidebar Daily Move Card */
+.dailyMoveCard {
+  background: rgba(255, 255, 255, 0.018);
+  border: 1px solid rgba(255, 255, 255, 0.055);
   border-radius: var(--radius-md);
   padding: 14px var(--spacing-4);
   display: flex;
   flex-direction: column;
-  gap: 10px;
-}
-
-.legendCardHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.legendCardHeader span {
-  font-size: 0.76rem;
-  color: var(--color-text-secondary);
-  font-weight: 800;
-}
-
-.legendCardHeader em {
-  font-size: 0.74rem;
-  color: var(--color-text-tertiary);
-  font-style: normal;
-  font-weight: 700;
-}
-
-.legendCardGrid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
 }
 
-.legendGridItem {
-  background: rgba(0, 0, 0, 0.12);
-  border-radius: var(--radius-sm);
-  padding: 8px 10px;
+.dailyMoveHeader {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
 }
 
-.legendItemLabel {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.7rem;
-  color: var(--color-text-tertiary);
-  font-weight: 750;
-}
-
-.legendItemLabel i {
-  display: inline-block;
-  width: 8px;
-  height: 0;
-  border-top-width: 2px;
-  border-top-style: solid;
-}
-
-.ma5LineColor { border-color: rgba(255, 255, 255, 0.7); }
-.ma20LineColor { border-color: #3b82f6; border-top-style: dashed !important; }
-.ma60LineColor { border-color: #f59e0b; border-top-style: dashed !important; }
-
-.legendGridItem strong {
-  font-size: 0.8rem;
-  color: var(--color-text-primary);
+.dailyMoveHeader span {
+  font-size: 0.76rem;
+  color: var(--color-text-secondary);
   font-weight: 850;
+}
+
+.dailyMoveHeader strong {
+  font-size: 1.15rem;
+  font-weight: 950;
+}
+
+.dailyMoveCard p,
+.dailyMoveCard small {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font-size: 0.76rem;
+  line-height: 1.45;
+  font-weight: 750;
+  word-break: keep-all;
+}
+
+.dailyMoveCard p {
+  color: var(--color-text-secondary);
 }
 
 /* Glassmorphism AI Detail Modal Popup */

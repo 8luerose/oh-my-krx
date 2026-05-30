@@ -75,7 +75,9 @@ async function requestJson(path, options = {}) {
     ...options
   });
   if (!response.ok) {
-    throw new Error(`요청 실패: ${response.status}`);
+    const error = new Error(`요청 실패: ${response.status}`);
+    error.status = response.status;
+    throw error;
   }
   return response.json();
 }
@@ -141,6 +143,85 @@ function formatRate(value) {
     return `${value > 0 ? "+" : ""}${value.toFixed(2)}%`;
   }
   return value || "실제 데이터";
+}
+
+function formatBriefRate(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "";
+  return `${number > 0 ? "+" : ""}${number.toFixed(2)}%`;
+}
+
+function briefEntryLabel(item) {
+  if (!item) return "";
+  if (typeof item === "string") return item;
+  const name = item.name || item.stockName || item.code || "종목";
+  const rate = formatBriefRate(item.rate ?? item.changeRate);
+  const count = Number.isFinite(Number(item.count)) ? `${Number(item.count).toLocaleString()}건` : "";
+  return [name, rate || count].filter(Boolean).join(" ");
+}
+
+function briefLine(label, item, empty = "데이터 없음") {
+  return `${label}: ${briefEntryLabel(item) || empty}`;
+}
+
+function briefPickLabel(name, rate, fallbackItem) {
+  if (name && name !== "-") {
+    return [name, formatBriefRate(rate)].filter(Boolean).join(" ");
+  }
+  return briefEntryLabel(fallbackItem) || "데이터 없음";
+}
+
+function briefTopLines(title, items = []) {
+  const entries = Array.isArray(items) ? items.slice(0, 3) : [];
+  if (!entries.length) return [`${title}: 데이터 없음`];
+  return [
+    `${title}:`,
+    ...entries.map((item) => briefEntryLabel(item) || "데이터 없음")
+  ];
+}
+
+function withBriefLines(summary = {}) {
+  const kospiGainers = Array.isArray(summary.kospiTopGainers) ? summary.kospiTopGainers : [];
+  const kospiLosers = Array.isArray(summary.kospiTopLosers) ? summary.kospiTopLosers : [];
+  const kosdaqGainers = Array.isArray(summary.kosdaqTopGainers) ? summary.kosdaqTopGainers : [];
+  const kosdaqLosers = Array.isArray(summary.kosdaqTopLosers) ? summary.kosdaqTopLosers : [];
+  const topGainers = Array.isArray(summary.topGainers)
+    ? summary.topGainers.slice(0, 3)
+    : [summary.topGainer && { name: summary.topGainer, rate: summary.topGainerRate }].filter(Boolean);
+  const topLosers = Array.isArray(summary.topLosers)
+    ? summary.topLosers.slice(0, 3)
+    : [summary.topLoser && { name: summary.topLoser, rate: summary.topLoserRate }].filter(Boolean);
+  const mentioned = Array.isArray(summary.mostMentionedTop)
+    ? summary.mostMentionedTop
+    : [summary.mostMentioned && { name: summary.mostMentioned }].filter(Boolean);
+  const kospiTopGainer = kospiGainers[0] || topGainers[0] || { name: summary.kospiTopGainer, rate: summary.kospiTopGainerRate };
+  const kospiTopLoser = kospiLosers[0] || topLosers[0] || { name: summary.kospiTopLoser, rate: summary.kospiTopLoserRate };
+  const kosdaqTopGainer = kosdaqGainers[0] || topGainers[0] || { name: summary.kosdaqTopGainer, rate: summary.kosdaqTopGainerRate };
+  const kosdaqTopLoser = kosdaqLosers[0] || topLosers[0] || { name: summary.kosdaqTopLoser, rate: summary.kosdaqTopLoserRate };
+  const marketDate = summary.date || summary.effectiveDate || "날짜 확인 필요";
+  return {
+    ...summary,
+    lines: [
+      `📊 ${marketDate} 한국 주식 일간 브리프 (전일 대비)`,
+      "",
+      briefLine("🟢 KOSPI 상승 1위", kospiTopGainer),
+      briefLine("🔴 KOSPI 하락 1위", kospiTopLoser),
+      briefLine("🟢 KOSDAQ 상승 1위", kosdaqTopGainer),
+      briefLine("🔴 KOSDAQ 하락 1위", kosdaqTopLoser),
+      "",
+      `💬 최다 언급: ${briefEntryLabel(mentioned[0]) || "데이터 없음"}`,
+      `🏆 KOSPI 픽: ${briefPickLabel(summary.kospiPick, summary.kospiTopGainerRate, kospiTopGainer)}`,
+      `🏆 KOSDAQ 픽: ${briefPickLabel(summary.kosdaqPick, summary.kosdaqTopGainerRate, kosdaqTopGainer)}`,
+      "",
+      ...briefTopLines("📈 KOSPI 전일대비 상승 TOP3", kospiGainers.length ? kospiGainers : topGainers),
+      "",
+      ...briefTopLines("📉 KOSPI 전일대비 하락 TOP3", kospiLosers.length ? kospiLosers : topLosers),
+      "",
+      ...briefTopLines("📈 KOSDAQ 전일대비 상승 TOP3", kosdaqGainers.length ? kosdaqGainers : topGainers),
+      "",
+      ...briefTopLines("📉 KOSDAQ 전일대비 하락 TOP3", kosdaqLosers.length ? kosdaqLosers : topLosers)
+    ]
+  };
 }
 
 function normalizeStockOption(item = {}) {
@@ -1055,23 +1136,36 @@ export async function loadLearningTerms() {
   }
 }
 
-export async function askAiForTerm(termName, stockCode = "") {
+export async function askAiForTerm(termName, stockCode = "", stockName = "") {
+  const controller = new AbortController();
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), 6500);
   try {
     const response = await requestJson("/api/ai/chat", {
       method: "POST",
+      signal: controller.signal,
       body: JSON.stringify({
-        message: `주식 용어 중 '${termName}'이 초보자 눈높이에서 무엇을 의미하는지 다음 형식 규칙을 반드시 철저히 지켜서 설명해줘:
-1. 불필요한 인사말, 서론, 결론은 일절 제외하고 정확히 '총 4줄'로만 답해야 해.
-2. 1번째~3번째 줄: 핵심 뜻과 투자 판단 기준을 짤막한 개조식 문장(각 문장은 - 로 시작)으로 정확히 2~3줄 요약해줘.
-3. 4번째 줄: 실전 투자 상황을 가정한 구체적 예시 문장을 정확히 1줄 추가해줘.
-4. 모든 응답 텍스트는 정확히 총 4줄로 정돈해줘.`,
-        stockCode
+        question: `주식 초보자에게 '${termName}'이라는 용어만 설명해줘. 아래 형식을 지켜줘.
+- 뜻: 한 문장
+- 차트에서: 차트에서 어디를 보면 되는지 한 문장
+- 실전 예시: '${termName}'이라는 단어가 들어간 실제 사용 예문 한 문장
+- 주의: 오해하거나 실수하기 쉬운 점 한 문장
+금지: 기준일, 대상 종목, 분석 범위, 종목 추천, 인사말, 긴 결론을 쓰지 마.`,
+        stockCode,
+        stockName,
+        context: {
+          stockCode,
+          stockName,
+          termName,
+          task: "beginner_stock_term_explanation"
+        }
       })
     });
     return response.answer || response.conclusion || response.response || response.content || "용어 설명을 가져오지 못했습니다.";
   } catch (error) {
     console.error("AI 용어 설명 실패:", error);
     throw new Error("로컬 AI 연결에 실패했거나 대답을 생성하는 중 오류가 발생했습니다.");
+  } finally {
+    globalThis.clearTimeout(timeoutId);
   }
 }
 
@@ -1252,5 +1346,12 @@ export async function loadSummaryByDate(date) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(safeDate)) {
     throw new Error("올바르지 않은 날짜 형식입니다.");
   }
-  return requestJson(`/api/summaries/${safeDate}`);
+  try {
+    return withBriefLines(await requestJson(`/api/summaries/${safeDate}`));
+  } catch (error) {
+    if (error.status === 404) {
+      return withBriefLines(await requestJson(`/api/summaries/${safeDate}/generate`, { method: "POST" }));
+    }
+    throw error;
+  }
 }

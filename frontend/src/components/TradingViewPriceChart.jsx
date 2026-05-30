@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
-import { Brain, CandlestickChart, Newspaper } from 'lucide-react';
+import { Brain, Newspaper } from 'lucide-react';
 import styles from './TradingViewPriceChart.module.css';
 
 function loadTradingViewLibrary() {
@@ -508,6 +508,7 @@ export default function TradingViewPriceChart({
 
     return {
       latest,
+      previousClose: previous?.close ? Number(previous.close) : null,
       changeRate,
       ma20,
       ma20Distance,
@@ -823,7 +824,7 @@ export default function TradingViewPriceChart({
     const kosdaqTopGainer = kosdaqGainers[0] || topGainers[0] || { name: latestBrief?.kosdaqTopGainer, rate: latestBrief?.kosdaqTopGainerRate };
     const kosdaqTopLoser = kosdaqLosers[0] || topLosers[0] || { name: latestBrief?.kosdaqTopLoser, rate: latestBrief?.kosdaqTopLoserRate };
     const briefLines = [
-      `📊 ${marketDate} 한국 주식 일간 브리프 (${getPeriodLabel(interval)} 대비)`,
+      `📊 ${marketDate} 한국 주식 일간 브리프 (전일 대비)`,
       '',
       briefLine('🟢 KOSPI 상승 1위', kospiTopGainer),
       briefLine('🔴 KOSPI 하락 1위', kospiTopLoser),
@@ -834,13 +835,13 @@ export default function TradingViewPriceChart({
       `🏆 KOSPI 픽: ${briefPickLabel(latestBrief?.kospiPick, latestBrief?.kospiTopGainerRate, kospiTopGainer)}`,
       `🏆 KOSDAQ 픽: ${briefPickLabel(latestBrief?.kosdaqPick, latestBrief?.kosdaqTopGainerRate, kosdaqTopGainer)}`,
       '',
-      ...briefTopLines(`📈 KOSPI ${getPeriodLabel(interval)}대비 상승 TOP3`, kospiGainers.length ? kospiGainers : topGainers),
+      ...briefTopLines('📈 KOSPI 전일대비 상승 TOP3', kospiGainers.length ? kospiGainers : topGainers),
       '',
-      ...briefTopLines(`📉 KOSPI ${getPeriodLabel(interval)}대비 하락 TOP3`, kospiLosers.length ? kospiLosers : topLosers),
+      ...briefTopLines('📉 KOSPI 전일대비 하락 TOP3', kospiLosers.length ? kospiLosers : topLosers),
       '',
-      ...briefTopLines(`📈 KOSDAQ ${getPeriodLabel(interval)}대비 상승 TOP3`, kosdaqGainers.length ? kosdaqGainers : topGainers),
+      ...briefTopLines('📈 KOSDAQ 전일대비 상승 TOP3', kosdaqGainers.length ? kosdaqGainers : topGainers),
       '',
-      ...briefTopLines(`📉 KOSDAQ ${getPeriodLabel(interval)}대비 하락 TOP3`, kosdaqLosers.length ? kosdaqLosers : topLosers)
+      ...briefTopLines('📉 KOSDAQ 전일대비 하락 TOP3', kosdaqLosers.length ? kosdaqLosers : topLosers)
     ];
     return {
       basisDate,
@@ -1159,29 +1160,19 @@ export default function TradingViewPriceChart({
         </div>
 
         {latest && (
-          <section className={styles.chartLegendCard} aria-label="차트 요약 및 범례">
-            <div className={styles.legendCardHeader}>
-              <span>📊 차트 요약</span>
-              <em>거래량 {formatVolume(latest.volume)}</em>
+          <section className={styles.dailyMoveCard} aria-label="전일 대비 요약">
+            <div className={styles.dailyMoveHeader}>
+              <span>전일 대비</span>
+              <strong className={Number(chartMetrics?.changeRate) >= 0 ? styles.up : styles.down}>
+                {formatPercent(chartMetrics?.changeRate)}
+              </strong>
             </div>
-            <div className={styles.legendCardGrid}>
-              <div className={styles.legendGridItem}>
-                <span className={styles.legendItemLabel}><CandlestickChart size={13} /> 캔들 (시가와 종가)</span>
-                <strong>{formatCurrency(latest.close)}</strong>
-              </div>
-              <div className={styles.legendGridItem}>
-                <span className={styles.legendItemLabel}><i className={styles.ma5LineColor} /> 5일선 (1주 평균)</span>
-                <strong>{latest.ma5 ? formatCurrency(latest.ma5) : '계산 중'}</strong>
-              </div>
-              <div className={styles.legendGridItem}>
-                <span className={styles.legendItemLabel}><i className={styles.ma20LineColor} /> 20일선 (1달 평균)</span>
-                <strong>{latest.ma20 ? formatCurrency(latest.ma20) : '계산 중'}</strong>
-              </div>
-              <div className={styles.legendGridItem}>
-                <span className={styles.legendItemLabel}><i className={styles.ma60LineColor} /> 60일선 (3달 평균)</span>
-                <strong>{latest.ma60 ? formatCurrency(latest.ma60) : '계산 중'}</strong>
-              </div>
-            </div>
+            <p>
+              {Number.isFinite(chartMetrics?.previousClose)
+                ? `전날 종가 ${formatCurrency(chartMetrics.previousClose)}에서 현재가 ${formatCurrency(latest.close)}로 움직였습니다.`
+                : `현재가 ${formatCurrency(latest.close)} 기준으로 가격 변화를 확인합니다.`}
+            </p>
+            <small>파란·노란 점선은 차트 아래 설명과 클릭 툴팁에서 확인합니다.</small>
           </section>
         )}
 
@@ -1208,21 +1199,21 @@ export default function TradingViewPriceChart({
             type="button"
             className={clsx(styles.primaryAiAction, activeAssistPanel === 'ai' && styles.assistActionActive)}
             onClick={handleAiHelpClick}
-            aria-label="AI 상세 판단 보기"
+            aria-label="AI 도움 받기"
             aria-pressed={activeAssistPanel === 'ai'}
           >
             <Brain size={15} aria-hidden="true" />
-            <span>AI 상세 판단</span>
+            <span>AI 도움 받기</span>
           </button>
           <button
             type="button"
             className={clsx(styles.briefAction, activeAssistPanel === 'brief' && styles.assistActionActive)}
             onClick={handleBriefClick}
-            aria-label="시장 브리프"
+            aria-label="브리프 불러오기"
             aria-pressed={activeAssistPanel === 'brief'}
           >
             <Newspaper size={15} aria-hidden="true" />
-            <span>시장 브리프</span>
+            <span>브리프 불러오기</span>
           </button>
         </div>
 
@@ -1263,7 +1254,7 @@ export default function TradingViewPriceChart({
           >
             <div className={styles.briefModalHeader}>
               <div>
-                <span>전체 시장 브리프</span>
+                <span>브리프 불러오기</span>
                 <strong>{briefLoading ? '불러오는 중' : briefInsight.basisDate || '최신 브리프'}</strong>
               </div>
               <button type="button" onClick={() => setActiveAssistPanel('none')} aria-label="브리프 닫기">닫기</button>
@@ -1272,7 +1263,7 @@ export default function TradingViewPriceChart({
               {briefLoading ? '브리프를 불러오는 중입니다.' : briefInsight.lines.join('\n')}
             </pre>
             <p className={styles.briefModalNote}>
-              이 브리프는 전체 시장 순위입니다. 현재 차트 종목인 {stock?.name || '선택 종목'} 판단은 우측의 AI 도움 받기에서 따로 봅니다.
+              이 브리프는 전체 시장 순위입니다. 현재 차트 종목인 {stock?.name || '선택 종목'} 판단과 직접 연결된 내용은 AI 도움 받기에서 따로 봅니다.
             </p>
           </section>
         </div>
@@ -1288,12 +1279,12 @@ export default function TradingViewPriceChart({
             )}
             role="dialog"
             aria-modal="true"
-            aria-label="AI 상세 판단 전략"
+            aria-label="AI 도움 받기"
             onClick={(event) => event.stopPropagation()}
           >
             <div className={styles.briefModalHeader}>
               <div>
-                <span>{stock?.name || '현재 종목'} 맞춤 전략</span>
+                <span>{stock?.name || '현재 종목'} AI 도움 받기</span>
                 <strong className={clsx(
                   styles.modalDecisionBadge,
                   aiDecision.tone === 'buy' && styles.modalDecisionBuy,
@@ -1342,48 +1333,24 @@ export default function TradingViewPriceChart({
                   </p>
                 </article>
                 <article>
-                  <span>3단계 가격 대응</span>
-                  <strong>{getPeriodLabel(interval)}비 {formatPercent(chartMetrics?.changeRate)}</strong>
-                  <p>{plainNextCheck(aiDecision, chartMetrics)}</p>
+                  <span>3단계 장후 브리프</span>
+                  <strong>{briefInsight.basisDate || aiDecision.mood}</strong>
+                  <p>
+                    {compactText(
+                      ai?.marketReport?.marketReadThrough
+                        || ai?.marketReport?.sessionBrief
+                        || ai?.ollamaInsights?.afterMarketReport?.marketReadThrough
+                        || ai?.ollamaInsights?.afterMarketReport?.llmComment,
+                      `전체 시장 브리프는 ${stock?.name || '현재 종목'} 판단과 별도로 확인합니다.`,
+                      92
+                    )}
+                  </p>
                 </article>
               </div>
             </div>
           </section>
         </div>
       ), document.body)}
-      {chartMetrics && (
-        <aside className={styles.signalPanel} aria-label="현재 차트 핵심 신호">
-          <div className={styles.signalHeader}>
-            <span>현재 차트 핵심 (주요 흐름)</span>
-            <strong>{chartMetrics.focus}</strong>
-          </div>
-          <div className={styles.signalGrid}>
-            <div>
-              <span>{getPeriodLabel(interval)} 대비 (기간변동)</span>
-              <strong className={Number(chartMetrics.changeRate) >= 0 ? styles.up : styles.down}>
-                {formatPercent(chartMetrics.changeRate)}
-              </strong>
-            </div>
-            <div>
-              <span>20일선 거리 (1달평균갭)</span>
-              <strong className={chartMetrics.aboveMa20 ? styles.up : styles.down}>
-                {formatPercent(chartMetrics.ma20Distance)}
-              </strong>
-            </div>
-            <div>
-              <span>저항선까지 (돌파목표)</span>
-              <strong>{formatPercent(chartMetrics.resistanceDistance)}</strong>
-            </div>
-            <div>
-              <span>거래량 강도 (매매수량)</span>
-              <strong>{Number.isFinite(chartMetrics.volumeRatio) ? `${Math.round(chartMetrics.volumeRatio)}%` : '확인 필요'}</strong>
-            </div>
-          </div>
-          <p>
-            20일선(1달평균) {formatCurrency(chartMetrics.ma20)} · 지지선(하락방어) {formatCurrency(chartMetrics.support)} · 저항선(돌파목표) {formatCurrency(chartMetrics.resistance)}
-          </p>
-        </aside>
-      )}
       {visibleLayers.ai && forecastGuide && (
         <aside
           className={clsx(
@@ -1751,24 +1718,22 @@ export default function TradingViewPriceChart({
             </strong>
           </div>
           <ul className={styles.tooltipBulletList}>
-            <li>시가 {formatCurrency(hover.open)} · 고가 {formatCurrency(hover.high)}</li>
-            <li>저가 {formatCurrency(hover.low)} · 거래량 {formatVolume(hover.volume)}</li>
-            {Number.isFinite(hover.ma20) && <li>파란 점선 20일 평균 {formatCurrency(hover.ma20)}</li>}
-            {Number.isFinite(hover.ma60) && <li>노란 점선 60일 평균 {formatCurrency(hover.ma60)}</li>}
-            {hoverInsight && <li>{hoverInsight.candleDirection} · {hoverInsight.priceState}</li>}
-            {hoverInsight && <li>{hoverInsight.volumeState}</li>}
-            {hoverInsight && <li>뉴스: {hoverInsight.eventText}</li>}
+            <li>가격: 시가 {formatCurrency(hover.open)} · 고가 {formatCurrency(hover.high)} · 저가 {formatCurrency(hover.low)}</li>
+            <li>거래량: {formatVolume(hover.volume)}{hoverInsight ? ` · ${hoverInsight.volumeState}` : ''}</li>
+            {Number.isFinite(hover.ma20) && <li>파란 점선: 20일 평균 가격 {formatCurrency(hover.ma20)}</li>}
+            {Number.isFinite(hover.ma60) && <li>노란 점선: 60일 평균 가격 {formatCurrency(hover.ma60)}</li>}
+            {hoverInsight && <li>해석: {hoverInsight.candleDirection} · {hoverInsight.priceState}</li>}
           </ul>
           {hoverInsight && (
             <div className={styles.tooltipAi}>
               <div className={styles.tooltipAiHeader}>
                 <Brain size={14} aria-hidden="true" />
-                <b>AI 도움 요약</b>
+                <b>AI 도움</b>
                 <span>{hoverInsight.decision}</span>
               </div>
               <ul className={styles.tooltipAiList}>
-                <li>{hoverInsight.nextAction}</li>
-                <li>이 날짜 하나만 보고 매수·매도하지 않습니다.</li>
+                <li>다음 확인: {hoverInsight.nextAction}</li>
+                <li>이 날짜 하나만 보고 매수·매도를 확정하지 않습니다.</li>
               </ul>
             </div>
           )}

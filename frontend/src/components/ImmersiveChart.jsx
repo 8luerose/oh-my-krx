@@ -83,6 +83,161 @@ function hasNumericValue(value) {
   return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
 }
 
+const LEARNING_TERMS = [
+  { name: '5일선', desc: '1주 평균' },
+  { name: '20일선', desc: '1달 평균' },
+  { name: '60일선', desc: '3달 평균' },
+  { name: '거래량', desc: '매매 수량' },
+  { name: '거래대금', desc: '자금 흐름' },
+  { name: '골든크로스', desc: '상승 전환' },
+  { name: '공매도', desc: '하락 베팅' },
+  { name: '공시', desc: '기업 정보' },
+  { name: '기관 수급', desc: '기관 매매' },
+  { name: '데드크로스', desc: '하락 전환' },
+  { name: '등락률', desc: '가격 변화' },
+  { name: '매도세', desc: '팔려는 힘' },
+  { name: '매수세', desc: '사려는 힘' },
+  { name: '물타기', desc: '평단 낮추기' },
+  { name: '박스권', desc: '횡보 구간' },
+  { name: '변동성', desc: '흔들림 폭' },
+  { name: '분할매도', desc: '나눠 팔기' },
+  { name: '분할매수', desc: '나눠 사기' },
+  { name: '손절매', desc: '손실 차단' },
+  { name: '시가총액', desc: '기업 규모' },
+  { name: '신고가', desc: '새 고점' },
+  { name: '신용잔고', desc: '빚투 잔량' },
+  { name: '외국인 수급', desc: '외인 매매' },
+  { name: '익절', desc: '이익 확정' },
+  { name: '저항선', desc: '돌파 목표' },
+  { name: '지지선', desc: '하락 방어' },
+  { name: '체결강도', desc: '매수 강도' },
+  { name: '추세선', desc: '방향선' },
+  { name: '캔들차트', desc: '가격 막대' },
+  { name: '테마주', desc: '기대감 주' },
+  { name: '평단가', desc: '평균 매수가' },
+  { name: 'PER', desc: '이익 대비 가격' },
+  { name: 'PBR', desc: '자산 대비 가격' },
+  { name: 'ROE', desc: '자본 수익률' }
+];
+
+const TERM_EXPLANATION_FALLBACK = {
+  '5일선': {
+    meaning: '최근 5거래일 종가의 평균값입니다.',
+    chart: '짧은 흐름을 보는 선이라 가격이 5일선 위에 있으면 단기 힘이 살아 있다고 봅니다.',
+    example: '5일선이 20일선 위로 올라오면 단기 매수세가 강해졌는지 거래량과 함께 확인합니다.',
+    caution: '너무 짧은 평균이라 하루 급등락에도 쉽게 흔들립니다.'
+  },
+  '20일선': {
+    meaning: '최근 20거래일 종가의 평균값이며 보통 한 달 평균 가격으로 봅니다.',
+    chart: '현재가가 20일선 위인지 아래인지로 중기 흐름을 먼저 확인합니다.',
+    example: '20일선 위에서 종가가 유지되고 거래량이 늘면 매수 검토 조건으로 볼 수 있습니다.',
+    caution: '20일선만 보고 바로 매수하지 말고 뉴스와 거래량을 같이 봐야 합니다.'
+  },
+  '60일선': {
+    meaning: '최근 60거래일 평균 가격으로 약 3개월 흐름을 보여줍니다.',
+    chart: '가격이 60일선 위에 있으면 큰 흐름이 비교적 안정적인지 확인합니다.',
+    example: '60일선을 회복한 뒤 눌림이 약하면 중기 반등 가능성을 점검합니다.',
+    caution: '반응이 느린 선이라 급변하는 종목에서는 늦게 따라올 수 있습니다.'
+  },
+  '거래량': {
+    meaning: '하루 동안 실제로 사고팔린 주식 수입니다.',
+    chart: '가격 상승과 함께 거래량이 늘면 관심이 붙었는지 확인합니다.',
+    example: '거래량이 평소보다 크게 늘었는데 가격이 밀리면 매도세도 강한지 봅니다.',
+    caution: '거래량 증가가 항상 좋은 신호는 아니며 하락 거래량도 있습니다.'
+  },
+  '저항선': {
+    meaning: '가격이 올라갈 때 자주 막히는 구간입니다.',
+    chart: '과거 고점이나 매물이 많았던 가격대를 저항선 후보로 봅니다.',
+    example: '저항선을 강하게 돌파하고 거래량이 붙으면 매수 검토 조건이 됩니다.',
+    caution: '돌파 직후 바로 밀리면 거짓 돌파일 수 있습니다.'
+  },
+  '지지선': {
+    meaning: '가격이 내려갈 때 버텨주는 구간입니다.',
+    chart: '과거 저점이나 반등이 반복된 가격대를 지지선 후보로 봅니다.',
+    example: '지지선 근처에서 하락이 멈추면 분할매수 가능성을 검토합니다.',
+    caution: '지지선이 깨지면 손실 관리 기준을 먼저 세워야 합니다.'
+  },
+  'PER': {
+    meaning: '주가가 기업 이익에 비해 비싼지 보는 지표입니다.',
+    chart: '차트 지표는 아니며 같은 업종 평균과 비교해 봅니다.',
+    example: 'PER이 업종보다 높으면 성장 기대가 이미 주가에 반영됐는지 확인합니다.',
+    caution: 'PER은 적자 기업이나 일회성 이익이 큰 기업에서는 왜곡될 수 있습니다.'
+  },
+  'PBR': {
+    meaning: '주가가 기업 순자산에 비해 비싼지 보는 지표입니다.',
+    chart: '차트보다는 재무 지표에서 확인하고 업종 특성과 비교합니다.',
+    example: 'PBR이 낮아도 이익이 줄고 있으면 싸다고 단정하지 않습니다.',
+    caution: '자산 가치가 낮아지는 업종에서는 낮은 PBR도 위험할 수 있습니다.'
+  },
+  'ROE': {
+    meaning: '자기자본으로 얼마나 이익을 냈는지 보여주는 수익성 지표입니다.',
+    chart: '차트와 함께 보면 주가 상승이 실적 힘을 받는지 확인할 수 있습니다.',
+    example: 'ROE가 꾸준히 높은데 20일선도 회복하면 실적과 수급을 함께 점검합니다.',
+    caution: '부채가 많아서 ROE가 높아 보이는 경우도 있습니다.'
+  }
+};
+
+function fallbackLearningExplanation(termName) {
+  const item = TERM_EXPLANATION_FALLBACK[termName] || {
+    meaning: `${termName}은 주가 흐름이나 기업 상태를 이해할 때 쓰는 기본 용어입니다.`,
+    chart: `${termName}이 차트에서 어떤 가격·거래량 변화와 연결되는지 먼저 확인합니다.`,
+    example: `${termName}을 볼 때는 오늘 가격만 보지 말고 전일 대비 변화와 거래량을 함께 봅니다.`,
+    caution: `${termName} 하나만으로 매수·매도를 결정하면 판단이 흔들릴 수 있습니다.`
+  };
+  return `뜻: ${item.meaning}\n차트에서: ${item.chart}\n실전 예시: ${item.example}\n주의: ${item.caution}`;
+}
+
+function normalizeLearningExplanation(termName, rawAnswer) {
+  const fallback = fallbackLearningExplanation(termName);
+  if (/기준일\s*[:：]|대상\s*[:：]|분석 범위|검색 맥락|차트 이벤트 근거/.test(String(rawAnswer || ''))) {
+    return fallback;
+  }
+  const cleanedLines = String(rawAnswer || '')
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[-*\d.\s]+/, '').trim())
+    .filter(Boolean)
+    .filter((line) => !/^(기준일|대상|분석 범위|분석범위|리포트|출처|면책|종목코드)\s*[:：]/.test(line))
+    .filter((line) => !/Ollama AI 학습 도우미|로컬 AI|맞춤형 학습 콘텐츠/.test(line));
+  const picked = {
+    meaning: '',
+    chart: '',
+    example: '',
+    caution: ''
+  };
+  cleanedLines.forEach((line) => {
+    const value = line.replace(/^(뜻|의미|차트에서|차트|실전 예시|예시|주의|주의점)\s*[:：]\s*/, '').trim();
+    if (/^(뜻|의미)\s*[:：]/.test(line)) picked.meaning = value;
+    else if (/^(차트에서|차트)\s*[:：]/.test(line)) picked.chart = value;
+    else if (/^(실전 예시|예시)\s*[:：]/.test(line)) picked.example = value;
+    else if (/^(주의|주의점)\s*[:：]/.test(line)) picked.caution = value;
+  });
+  const fallbackLines = fallback.split('\n').reduce((acc, line) => {
+    const [label, ...rest] = line.split(':');
+    acc[label.trim()] = rest.join(':').trim();
+    return acc;
+  }, {});
+  const meaning = picked.meaning || cleanedLines[0] || fallbackLines['뜻'];
+  const chart = picked.chart || cleanedLines.find((line) => /차트|가격|거래량|선/.test(line)) || fallbackLines['차트에서'];
+  const exampleCandidate = picked.example || cleanedLines.find((line) => line.includes(termName) && /때|면|예/.test(line));
+  const example = exampleCandidate && !/기준일|대상|분석/.test(exampleCandidate) ? exampleCandidate : fallbackLines['실전 예시'];
+  const caution = picked.caution || cleanedLines.find((line) => /주의|단정|위험|실수|오해/.test(line)) || fallbackLines['주의'];
+  return `뜻: ${meaning}\n차트에서: ${chart}\n실전 예시: ${example}\n주의: ${caution}`;
+}
+
+function parseLearningExplanation(value) {
+  return String(value || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [label, ...rest] = line.split(':');
+      return {
+        label: rest.length ? label.trim() : '핵심',
+        text: rest.length ? rest.join(':').trim() : line
+      };
+    });
+}
+
 export default function ImmersiveChart({ stock, chart, zones, events, ai, indicatorSnapshot, decisionSummary, interval, onChangeInterval, stockOptions = [], onChangeStock, learningMode, onTermClick, aiCardExpanded = false, onPanelOpenChange, onRefreshAi, onOpenPortfolio }) {
   const toolbarRef = useRef(null);
   const [activePanel, setActivePanel] = useState('none'); // 'none', 'stocks', 'calendar', 'guide', 'ai'
@@ -111,10 +266,10 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
     setLoadingTerm(true);
     setLearningExplanation('');
     try {
-      const ans = await askAiForTerm(termName, stock?.code);
-      setLearningExplanation(ans);
+      const ans = await askAiForTerm(termName, stock?.code, stock?.name);
+      setLearningExplanation(normalizeLearningExplanation(termName, ans));
     } catch (error) {
-      setLearningExplanation(error.message || '로컬 AI의 응답을 가져오지 못했습니다.');
+      setLearningExplanation(fallbackLearningExplanation(termName));
     } finally {
       setLoadingTerm(false);
     }
@@ -774,14 +929,14 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
             {activePanel === 'calendar' && (
               <div className={clsx(styles.dropdownPanel, styles.dropdownRight)} data-testid="brief-calendar-panel" aria-label="pykrx 브리프 달력">
                 <div className={styles.calendarPanelHeader}>
-                  <span>pykrx 기준 브리프</span>
+                  <span>pykrx 시장 브리프</span>
                   <div className={styles.calendarMonthSelector}>
                     <button type="button" onClick={handlePrevMonth} className={styles.monthNavBtn}>&lt;</button>
                     <strong>{calendarDate.getFullYear()}년 {calendarDate.getMonth() + 1}월</strong>
                     <button type="button" onClick={handleNextMonth} className={styles.monthNavBtn}>&gt;</button>
                   </div>
                   <p className={styles.calendarNoticeDesc}>
-                    달력에서 채워진 파란 동그라미 날짜는 저장된 시장 브리프 리포트가 있는 날입니다. 날짜를 클릭하면 상세 리포트가 팝업됩니다.
+                    날짜를 누르면 백엔드가 pykrx 기준 시장 브리프를 조회합니다. 파란 동그라미는 이미 빠르게 불러올 수 있는 날짜입니다.
                   </p>
                 </div>
                 {summaryArchiveLoading && <p className={styles.calendarEmpty}>브리프 데이터를 로드하고 있습니다.</p>}
@@ -798,13 +953,12 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
                         <button
                           type="button"
                           key={item.dateStr}
-                          onClick={() => hasBrief && handleCalendarDateClick(item.dateStr)}
+                          onClick={() => handleCalendarDateClick(item.dateStr)}
                           className={clsx(
                             styles.calendarDayBtn,
                             hasBrief && styles.calendarDayHasBrief,
                             item.dateStr === (latestBrief?.date) && styles.calendarDayToday
                           )}
-                          disabled={!hasBrief}
                           aria-label={`${item.dateStr} 브리프 보기`}
                         >
                           <span>{item.day}</span>
@@ -906,31 +1060,11 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
             </div>
             <div className={styles.learningModalBody}>
               <p className={styles.learningIntro}>
-                이해하기 어려운 주식 용어를 클릭해보세요. 사용자 PC에 설치된 <strong>Ollama AI</strong>가 초보자용 눈높이로 지능적 설명해 줍니다.
+                이해하기 어려운 주식 용어를 클릭해보세요. 사용자 PC에 연결된 <strong>Ollama AI</strong>가 초보자 눈높이로 뜻과 실제 사용 예시를 정리합니다.
               </p>
 
               <div className={styles.termButtonGrid}>
-                {[
-                  { name: '5일선', desc: '1주평균' },
-                  { name: '20일선', desc: '1달평균' },
-                  { name: '60일선', desc: '3달평균' },
-                  { name: '거래량', desc: '매매수량' },
-                  { name: '거래대금', desc: '자금흐름' },
-                  { name: '골든크로스', desc: '상승전환' },
-                  { name: '공시', desc: '기업정보' },
-                  { name: '데드크로스', desc: '하락전환' },
-                  { name: '등락률', desc: '대비비율' },
-                  { name: '매도세', desc: '팔려는힘' },
-                  { name: '매수세', desc: '사려는힘' },
-                  { name: '물타기', desc: '평단낮추기' },
-                  { name: '변동성', desc: '흔들림폭' },
-                  { name: '손절매', desc: '손실차단' },
-                  { name: '시가총액', desc: '기업가치' },
-                  { name: '저항선', desc: '돌파목표' },
-                  { name: '지지선', desc: '하락방어' },
-                  { name: '캔들차트', desc: '하루변동' },
-                  { name: '테마주', desc: '기대감주' }
-                ].map((term) => (
+                {LEARNING_TERMS.map((term) => (
                   <button
                     type="button"
                     key={term.name}
@@ -976,7 +1110,7 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
                 setSelectedTerm('');
               }} aria-label="설명 닫기">닫기</button>
             </div>
-            <div className={styles.briefTextBlock} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '160px' }}>
+            <div className={clsx(styles.briefTextBlock, styles.learningExplanationBody)}>
               {loadingTerm ? (
                 <div className={styles.learningSpinnerBox}>
                   <div className={styles.spinner} />
@@ -984,55 +1118,19 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
                 </div>
               ) : learningExplanation ? (
                 <div className={styles.learningSuccessBox}>
-                  {(() => {
-                    const lines = learningExplanation
-                      .split('\n')
-                      .map(l => l.replace(/^[-*\s\d.]+\s*/, '').trim())
-                      .filter(Boolean);
-                    
-                    const definitionLines = lines.slice(0, Math.min(3, lines.length - 1));
-                    const exampleLine = lines.length > 1 ? lines[lines.length - 1] : '';
-
-                    if (lines.length <= 1) {
-                      return (
-                        <p className={styles.learningExplanationText} style={{ margin: 0 }}>{learningExplanation}</p>
-                      );
-                    }
-
-                    return (
-                      <>
-                        <div style={{ display: 'grid', gap: '8px', marginBottom: '16px' }}>
-                          {definitionLines.map((line, idx) => (
-                            <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                              <span style={{ color: '#3182f6', fontWeight: 'bold' }}>•</span>
-                              <p className={styles.learningExplanationText} style={{ margin: 0 }}>{line}</p>
-                            </div>
-                          ))}
-                        </div>
-                        {exampleLine && (
-                          <div style={{
-                            background: 'rgba(49, 130, 246, 0.06)',
-                            borderLeft: '3px solid #3182f6',
-                            padding: '12px 16px',
-                            borderRadius: '0 8px 8px 0',
-                            marginTop: '8px'
-                          }}>
-                            <span style={{ fontSize: '0.74rem', color: '#3182f6', fontWeight: '800', display: 'block', marginBottom: '4px' }}>실전 활용 예시</span>
-                            <p className={styles.learningExplanationText} style={{ margin: 0, fontStyle: 'italic', color: 'var(--color-text-secondary)' }}>
-                              "{exampleLine}"
-                            </p>
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
+                  {parseLearningExplanation(learningExplanation).map((line) => (
+                    <article key={`${line.label}-${line.text}`} className={styles.learningExplanationItem}>
+                      <b>{line.label}</b>
+                      <p>{line.text}</p>
+                    </article>
+                  ))}
                 </div>
               ) : (
                 <p className={styles.learningPlaceholder}>AI 설명을 가져오지 못했습니다.</p>
               )}
             </div>
             <div className={styles.briefModalNote}>
-              이 설명은 사용자 PC의 로컬 Ollama AI 모델을 사용하여 4줄 요약 원칙 하에 생성된 맞춤형 학습 콘텐츠입니다.
+              기준일이나 종목 추천 문구는 빼고, 용어 뜻과 실제 사용 예시만 초보자용으로 정리합니다.
             </div>
           </section>
         </div>
@@ -1057,14 +1155,14 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
             </div>
             <pre className={styles.briefTextBlock}>
               {selectedBriefLoading 
-                ? '백엔드로부터 시장 브리프 리포트를 불러오는 중입니다...' 
+                ? 'pykrx 기준 시장 브리프를 불러오는 중입니다...'
                 : selectedBriefData?.lines?.length 
                   ? selectedBriefData.lines.join('\n') 
                   : selectedBriefData?.content 
                     || '해당 날짜의 리포트 본문 텍스트가 존재하지 않습니다.'}
             </pre>
             <p className={styles.briefModalNote}>
-              이 브리프는 pykrx 거래소 OHLCV 데이터 및 네이버 종목 토론 게시물 언급 빈도를 기반으로 산출된 백엔드 리포트입니다.
+              이 브리프는 현재 차트 종목과 별개인 전체 시장 순위입니다. {stock?.name || '현재 종목'} 판단은 우측 AI 도움 받기에서 따로 확인합니다.
             </p>
           </section>
         </div>
