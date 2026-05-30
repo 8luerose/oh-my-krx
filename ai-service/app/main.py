@@ -896,6 +896,11 @@ def _call_ollama_llm(messages: list[dict[str, str]], *, json_mode: bool = False)
     model = _ollama_model()
     base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
     timeout = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", os.getenv("LLM_TIMEOUT_SECONDS", "20")))
+    num_predict = int(
+        os.getenv("OLLAMA_JSON_NUM_PREDICT", "180")
+        if json_mode
+        else os.getenv("OLLAMA_NUM_PREDICT", os.getenv("LLM_MAX_TOKENS", "650"))
+    )
 
     if not model:
         return None, {
@@ -913,7 +918,7 @@ def _call_ollama_llm(messages: list[dict[str, str]], *, json_mode: bool = False)
         "stream": False,
         "options": {
             "temperature": 0.2,
-            "num_predict": int(os.getenv("OLLAMA_NUM_PREDICT", os.getenv("LLM_MAX_TOKENS", "650"))),
+            "num_predict": num_predict,
         },
     }
     if json_mode:
@@ -946,6 +951,7 @@ def _call_ollama_llm(messages: list[dict[str, str]], *, json_mode: bool = False)
             "baseUrl": base_url,
             "fallbackReason": "",
             "timeoutSeconds": timeout,
+            "numPredict": payload_data["options"]["num_predict"],
         }
     except (error.URLError, TimeoutError, json.JSONDecodeError, KeyError) as exc:
         return None, {
@@ -956,6 +962,18 @@ def _call_ollama_llm(messages: list[dict[str, str]], *, json_mode: bool = False)
             "fallbackReason": f"Ollama 호출 실패: {type(exc).__name__}",
             "timeoutSeconds": timeout,
         }
+
+
+def _ollama_config_meta() -> dict[str, Any]:
+    model = _ollama_model()
+    return {
+        "enabled": bool(model),
+        "provider": "ollama",
+        "model": model,
+        "baseUrl": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/"),
+        "fallbackReason": "",
+        "timeoutSeconds": float(os.getenv("OLLAMA_TIMEOUT_SECONDS", os.getenv("LLM_TIMEOUT_SECONDS", "20"))),
+    }
 
 
 def _llm_status() -> dict[str, Any]:
@@ -1839,16 +1857,28 @@ def _build_ollama_insights_prompt(
     code: str,
     basis_date: str,
     documents: list[dict[str, str]],
+    seed: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
-    prompt_documents = _ollama_prompt_documents(documents)
+    prompt_documents = _ollama_prompt_documents(documents)[:6]
     context = "\n".join(
-        f"[{doc['id']}] {doc['type']} | {doc['title']} | 기준일 {doc['basisDate']}\n{doc['text']}"
+        f"[{doc['id']}] {doc['type']} | {doc['title']} | {_compact(doc.get('text'), 140)}"
         for doc in prompt_documents
     )
+    seed = seed if isinstance(seed, dict) else {}
+    seed_advice = seed.get("stockAdvice") if isinstance(seed.get("stockAdvice"), dict) else {}
+    seed_sentiment = seed.get("newsSentiment") if isinstance(seed.get("newsSentiment"), dict) else {}
+    seed_report = seed.get("afterMarketReport") if isinstance(seed.get("afterMarketReport"), dict) else {}
+    seed_probabilities = seed_sentiment.get("nextTradingDay") if isinstance(seed_sentiment.get("nextTradingDay"), dict) else {}
+    seed_summary = "\n".join([
+        f"초안 결정: {_clean(seed_advice.get('decision'), '관망')}",
+        f"초안 이유: {_compact(seed_advice.get('summary'), 120)}",
+        f"뉴스 점수/확률: {_clean(seed_sentiment.get('score'), '0')}점, 상승 {_clean(seed_probabilities.get('up'), '확인')}%, 하락 {_clean(seed_probabilities.get('down'), '확인')}%, 횡보 {_clean(seed_probabilities.get('flat'), '확인')}%",
+        f"장후 분위기: {_clean(seed_report.get('mood'), '확인 필요')}",
+    ])
     system = (
         "너는 한국 주식 초보자를 위한 로컬 Ollama 투자 학습 보조자다. "
         "반드시 제공된 근거 안에서만 답하고 투자 지시, 수익 보장, 확정 표현을 금지한다. "
-        "결론은 매수 검토, 관망, 매도 검토 중 하나의 조건형 의견으로만 쓴다. "
+        "점수와 확률은 시스템 초안을 그대로 유지하고, 문장만 더 자연스럽게 다듬는다. "
         "반드시 한국어 JSON 객체 하나만 반환하고, 각 배열은 최대 2개 항목으로 짧게 쓴다. "
         "마크다운, 코드블록, JSON 밖 설명은 쓰지 않는다."
     )
@@ -1856,34 +1886,37 @@ def _build_ollama_insights_prompt(
 대상: {subject}{f"({code})" if code else ""}
 기준일: {basis_date}
 
+시스템 초안:
+{seed_summary}
+
 근거:
 {context or "제공된 근거가 없습니다."}
 
-다음 JSON 스키마를 지켜서 반환해라.
+다음 JSON 스키마만 반환해라. score와 nextTradingDay는 초안 숫자를 그대로 써라.
 {{
   "answer": "",
   "stockAdvice": {{
     "decision": "매수 검토|관망|매도 검토",
-    "summary": ""
+    "summary": "",
+    "buyConditions": [],
+    "watchConditions": [],
+    "sellConditions": []
   }},
   "newsSentiment": {{
-    "score": 0,
-    "label": "긍정 우위|중립|부정 우위",
     "summary": "",
-    "headlineSignals": [],
     "upReasons": [],
     "downRisks": [],
-    "caution": ""
+    "caution": "",
+    "actionGuide": []
   }},
   "afterMarketReport": {{
-    "mood": "",
     "llmComment": "",
     "nextWatch": []
   }},
   "beginnerNotes": [],
   "limitations": []
 }}
-빈 값에는 반드시 위 근거를 읽고 실제 한국어 문장을 채워라. 스키마 설명 문구를 복사하지 마라.
+빈 값에는 반드시 위 근거를 읽고 실제 한국어 문장을 채워라. 한 문장은 70자 이내로 써라.
 """
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
@@ -2135,23 +2168,39 @@ def _build_ollama_chat_prompt(
     topic_type: str,
     basis_date: str,
     documents: list[dict[str, str]],
+    seed: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
-    prompt_documents = _ollama_prompt_documents(documents)[:12]
+    prompt_documents = _ollama_prompt_documents(documents)[:8]
     context = "\n".join(
-        f"[{doc['id']}] {doc['type']} | {doc['title']} | {doc['text'][:260]}"
+        f"[{doc['id']}] {doc['type']} | {doc['title']} | {_compact(doc.get('text'), 180)}"
         for doc in prompt_documents
     )
+    seed = seed if isinstance(seed, dict) else {}
+    seed_advice = seed.get("stockAdvice") if isinstance(seed.get("stockAdvice"), dict) else {}
+    seed_sentiment = seed.get("newsSentiment") if isinstance(seed.get("newsSentiment"), dict) else {}
+    seed_report = seed.get("afterMarketReport") if isinstance(seed.get("afterMarketReport"), dict) else {}
+    seed_probabilities = seed_sentiment.get("nextTradingDay") if isinstance(seed_sentiment.get("nextTradingDay"), dict) else {}
+    seed_lines = "\n".join([
+        f"초안 결론: {_clean(seed_advice.get('decision'), '관망')}",
+        f"초안 이유: {_compact(seed_advice.get('summary'), 140)}",
+        f"뉴스 점수와 확률: {_clean(seed_sentiment.get('score'), '0')}점, 상승 {_clean(seed_probabilities.get('up'), '확인')}%, 하락 {_clean(seed_probabilities.get('down'), '확인')}%",
+        f"장후 분위기: {_clean(seed_report.get('mood'), '확인 필요')}",
+    ])
     system = (
         "너는 한국 주식 초보자를 위한 로컬 Ollama 상담 보조자다. "
         "제공된 근거만 사용하고 수익 보장이나 매수/매도 지시는 금지한다. "
-        "답변은 900자 이내의 쉬운 한국어로 쓴다. "
-        "결론은 매수 검토, 관망, 매도 검토 중 하나로 조건형으로 말한다."
+        "답변은 750자 이내의 쉬운 한국어로 쓴다. "
+        "첫 문장은 반드시 초안 결론을 사용해 '결론: 매수 검토/관망/매도 검토입니다.'처럼 구체적으로 시작한다. "
+        "마크다운 제목이나 굵게 표시는 쓰지 않는다."
     )
     user = f"""
 질문: {_clean(req.question, "이 종목 지금 사도 되나요?")}
 대상: {subject}{f"({code})" if code else ""}
 분석 범위: {topic_type}
 기준일: {basis_date}
+
+시스템 초안:
+{seed_lines}
 
 근거:
 {context or "제공된 근거가 없습니다."}
@@ -2183,8 +2232,9 @@ def ollama_insights(req: ChatRequest):
     code = _clean(req.stockCode, "")
     basis_date = _clean(req.contextDate, date.today().isoformat())
     documents = _build_retrieval_documents(req, subject, code, _clean(req.topicType, "stock"), basis_date)
+    seed = _fallback_ollama_insights(req, subject, code, basis_date, documents, _ollama_config_meta())
     llm_answer, llm_meta = _call_ollama_llm(
-        _build_ollama_insights_prompt(req, subject, code, basis_date, documents),
+        _build_ollama_insights_prompt(req, subject, code, basis_date, documents, seed),
         json_mode=True,
     )
     fallback = _fallback_ollama_insights(req, subject, code, basis_date, documents, llm_meta)
@@ -2318,9 +2368,15 @@ def chat(req: ChatRequest):
         sources.insert(3, {"title": "종목 뉴스 헤드라인 API", "type": "news", "url": f"/api/stocks/{code}/news"})
         sources.insert(4, {"title": "조건형 거래 구간 API", "type": "trade_zones", "url": f"/api/stocks/{code}/trade-zones"})
 
+    status = _llm_status()
+    ollama_seed = (
+        _fallback_ollama_insights(req, subject, code, basis_date, retrieval_documents, _ollama_config_meta())
+        if status["provider"] == "ollama"
+        else None
+    )
     prompt = (
-        _build_ollama_chat_prompt(req, subject, code, topic_type, basis_date, retrieval_documents)
-        if _llm_status()["provider"] == "ollama"
+        _build_ollama_chat_prompt(req, subject, code, topic_type, basis_date, retrieval_documents, ollama_seed)
+        if status["provider"] == "ollama"
         else _build_llm_prompt(req, subject, code, topic_type, basis_date, retrieval_documents)
     )
     llm_answer, llm_meta = _call_configured_llm(prompt)

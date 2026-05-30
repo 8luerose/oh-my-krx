@@ -77,6 +77,7 @@ LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://host.docker.internal:11434
 OLLAMA_MODEL=llama3.1:latest
 OLLAMA_TIMEOUT_SECONDS=45
+OLLAMA_JSON_NUM_PREDICT=180
 AI_CLIENT_READ_TIMEOUT_SECONDS=60
 docker compose up -d --build ai-service backend frontend
 curl http://localhost:8080/api/ai/status
@@ -107,7 +108,7 @@ docker compose up -d --build ai-service backend
 curl http://localhost:8080/api/ai/status
 ```
 
-응답 속도 조절은 `LLM_TIMEOUT_SECONDS`, `LLM_MAX_TOKENS`, `OLLAMA_TIMEOUT_SECONDS`, `OLLAMA_NUM_PREDICT`, `AI_CLIENT_READ_TIMEOUT_SECONDS`로 한다.
+응답 속도 조절은 `LLM_TIMEOUT_SECONDS`, `LLM_MAX_TOKENS`, `OLLAMA_TIMEOUT_SECONDS`, `OLLAMA_NUM_PREDICT`, `OLLAMA_JSON_NUM_PREDICT`, `AI_CLIENT_READ_TIMEOUT_SECONDS`로 한다.
 LLM timeout이 지나면 ai-service가 규칙형 근거 기반 응답으로 돌아가고, backend는 `AI_CLIENT_READ_TIMEOUT_SECONDS` 안에 응답을 받아야 한다.
 
 `/api/ai/ollama/insights`는 한 번에 세 가지를 반환한다.
