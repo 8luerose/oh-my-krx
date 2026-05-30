@@ -1671,6 +1671,9 @@ def _fallback_ollama_insights(
             "actionGuide": _sentiment_action_guide(decision, probabilities),
             "upReasons": up_reasons or ["상승 쪽 근거는 차트와 거래량 반응으로 추가 확인이 필요합니다."],
             "downRisks": down_risks or ["하락 쪽 반대 근거가 부족해도 지지선 이탈 여부는 확인해야 합니다."],
+            "llmContextLabel": "규칙형 점수 우선",
+            "llmContextReason": fallback_reason or "Ollama 문맥 판단 전에는 이벤트 점수와 헤드라인 분류를 먼저 보여줍니다.",
+            "llmContextEvidence": (headlines or news_profile["cautions"])[:2],
             "caution": news_profile["cautions"][0],
         },
         "afterMarketReport": {
@@ -1710,6 +1713,7 @@ PLACEHOLDER_TEXTS = (
     "차트, 재무/브리프, 뉴스/센티먼트를 합친 조건형 의견",
     "매수 검토|관망|매도 검토",
     "긍정 우위|중립|부정 우위",
+    "상승에 우호적|하락 위험|혼재|근거 약함",
     "다음 거래일 방향 예측 설명",
     "뉴스 헤드라인 또는 이벤트 신호",
     "핵심 뉴스 신호",
@@ -1778,6 +1782,34 @@ def _merge_insight_dict(base: dict[str, Any], generated: dict[str, Any] | None) 
     if generated.get("answer") and not _is_placeholder_text(generated.get("answer")):
         merged["answer"] = _clean(generated.get("answer"), merged["answer"])
     return merged
+
+
+def _apply_ollama_context_fields(response: dict[str, Any], used_llm: bool) -> dict[str, Any]:
+    sentiment = response.get("newsSentiment") if isinstance(response.get("newsSentiment"), dict) else {}
+    if not sentiment:
+        return response
+    if used_llm:
+        label = _clean(sentiment.get("llmContextLabel"), "")
+        if not label or "규칙형" in label:
+            score = _number(sentiment.get("score"), 0)
+            label = "상승 문맥 우위" if score > 20 else "하락 문맥 주의" if score < -20 else "혼재 문맥"
+            sentiment["llmContextLabel"] = label
+        reason = _clean(sentiment.get("llmContextReason"), "")
+        if not reason or "문맥 판단 전" in reason:
+            reason = (
+                _clean(sentiment.get("summary"), "")
+                or _clean((sentiment.get("upReasons") or [""])[0], "")
+                or _clean((sentiment.get("downRisks") or [""])[0], "")
+                or "Ollama가 헤드라인과 이벤트 문장을 함께 읽어 문맥 판단을 보강했습니다."
+            )
+            sentiment["llmContextReason"] = _compact(reason, 160)
+    elif not sentiment.get("llmContextLabel"):
+        sentiment["llmContextLabel"] = "규칙형 점수 우선"
+    if not sentiment.get("llmContextEvidence"):
+        evidence = sentiment.get("headlineSignals") or sentiment.get("upReasons") or sentiment.get("downRisks") or []
+        sentiment["llmContextEvidence"] = [_clean(item, "") for item in evidence[:2] if _clean(item, "")]
+    response["newsSentiment"] = sentiment
+    return response
 
 
 def _ollama_prompt_documents(documents: list[dict[str, str]]) -> list[dict[str, str]]:
@@ -1904,6 +1936,9 @@ def _build_ollama_insights_prompt(
   }},
   "newsSentiment": {{
     "summary": "",
+    "llmContextLabel": "상승에 우호적|하락 위험|혼재|근거 약함",
+    "llmContextReason": "",
+    "llmContextEvidence": [],
     "upReasons": [],
     "downRisks": [],
     "caution": "",
@@ -2241,6 +2276,7 @@ def ollama_insights(req: ChatRequest):
     generated = _json_object_from_text(llm_answer or "")
     response = _merge_insight_dict(fallback, generated)
     used_llm = bool(llm_answer)
+    response = _apply_ollama_context_fields(response, used_llm)
     if used_llm and not generated:
         raw_answer = _compact(llm_answer, 900)
         if raw_answer.lstrip().startswith("{"):

@@ -498,6 +498,45 @@
   margin-top: 7px !important;
 }
 
+.contextJudgement {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  border-radius: var(--radius-md);
+  background: rgba(37, 99, 235, 0.09);
+  padding: var(--spacing-3);
+}
+
+.contextJudgement b,
+.contextJudgement p,
+.contextJudgement li {
+  min-width: 0;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.contextJudgement b {
+  color: #bfdbfe;
+  font-size: 0.76rem;
+  line-height: 1.3;
+}
+
+.contextJudgement p,
+.contextJudgement li {
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.contextJudgement ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 16px;
+}
+
 .ollamaConditionGrid {
   display: grid;
   grid-template-columns: 1fr;

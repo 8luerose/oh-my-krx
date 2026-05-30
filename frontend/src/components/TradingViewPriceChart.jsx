@@ -408,6 +408,7 @@ export default function TradingViewPriceChart({
       flat,
       score: Number.isFinite(score) ? Math.round(score) : null,
       confidence: compactText(sentiment.confidence || sentiment.evidenceQuality, '근거 확인 중', 28),
+      contextLabel: compactText(sentiment.llmContextLabel, '문맥 판단 대기', 26),
       headline: compactText(headline, '뉴스 헤드라인 확인 필요', 88),
       action,
       loading: isWaitingForOllama
@@ -818,7 +819,7 @@ export default function TradingViewPriceChart({
             </span>
           </div>
           <p>{newsDirection.headline}</p>
-          <em>{newsDirection.loading ? 'Ollama 로컬 LLM 분석 준비 중' : `${newsDirection.confidence} · ${newsDirection.action}`}</em>
+          <em>{newsDirection.loading ? 'Ollama 로컬 LLM 분석 준비 중' : `문맥 ${newsDirection.contextLabel} · ${newsDirection.confidence} · ${newsDirection.action}`}</em>
         </aside>
       )}
       {visibleLayers.zones && zoneSummaries.length > 0 && (

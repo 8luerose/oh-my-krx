@@ -476,6 +476,9 @@ function normalizeOllamaInsights(remote = {}) {
       actionGuide: normalizeTextList(sentiment.actionGuide),
       upReasons: normalizeTextList(sentiment.upReasons),
       downRisks: normalizeTextList(sentiment.downRisks),
+      llmContextLabel: humanizeText(sentiment.llmContextLabel || ""),
+      llmContextReason: humanizeText(sentiment.llmContextReason || ""),
+      llmContextEvidence: normalizeTextList(sentiment.llmContextEvidence),
       caution: humanizeText(sentiment.caution || "뉴스 제목만으로 확정하지 말고 가격과 거래량 반응을 함께 확인합니다.")
     },
     afterMarketReport: {

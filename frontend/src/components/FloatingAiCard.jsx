@@ -71,6 +71,8 @@ export default function FloatingAiCard({ ai, events, asOf }) {
   const sentimentLabel = newsSentiment.label || '뉴스 감성 확인';
   const sentimentConfidence = newsSentiment.confidence || '확인 중';
   const sentimentSummary = newsSentiment.summary || '뉴스 헤드라인이 다음 거래일 가격 방향에 줄 수 있는 영향을 정리합니다.';
+  const contextLabel = newsSentiment.llmContextLabel || (insights?.mode === 'ollama_llm' ? 'Ollama 문맥 판단' : '규칙형 점수 우선');
+  const contextReason = newsSentiment.llmContextReason || '뉴스 제목과 이벤트를 함께 읽어 문맥상 방향을 보강합니다.';
   const sentimentScore = Number.isFinite(Number(newsSentiment.score))
     ? Number(newsSentiment.score)
     : Number(newsSentiment.scoreBreakdown?.adjustedScore || 0);
@@ -151,7 +153,7 @@ export default function FloatingAiCard({ ai, events, asOf }) {
                 <div>
                   <span>2. 뉴스 방향</span>
                   <strong>상승 {probabilityLabel(nextTradingDay.up)} · 하락 {probabilityLabel(nextTradingDay.down)}</strong>
-                  <p>{sentimentLabel} · 근거 {sentimentConfidence}{visibleHeadlineCount ? ` · 헤드라인 ${visibleHeadlineCount}개` : ''}</p>
+                  <p>{sentimentLabel} · 문맥 {contextLabel}{visibleHeadlineCount ? ` · 헤드라인 ${visibleHeadlineCount}개` : ''}</p>
                 </div>
               </article>
               <article className={styles.workflowCard}>
@@ -225,6 +227,19 @@ export default function FloatingAiCard({ ai, events, asOf }) {
                     </div>
                     {newsSentiment.confidenceReason && (
                       <p className={styles.sentimentCaution}>{newsSentiment.confidenceReason}</p>
+                    )}
+                    {(contextLabel || contextReason) && (
+                      <div className={styles.contextJudgement} aria-label="Ollama 뉴스 문맥 판단">
+                        <b>Ollama 문맥 판단 · {contextLabel}</b>
+                        <p>{contextReason}</p>
+                        {newsSentiment.llmContextEvidence?.length > 0 && (
+                          <ul>
+                            {newsSentiment.llmContextEvidence.slice(0, 2).map((item, index) => (
+                              <li key={`${item}-${index}`}>{item}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
                     )}
                     {newsSentiment.headlineSignals?.length > 0 && (
                       <ul className={styles.compactList}>
