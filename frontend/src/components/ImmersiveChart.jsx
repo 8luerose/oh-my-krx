@@ -22,7 +22,7 @@ function pipelineStateLabel(state) {
   return '대기';
 }
 
-export default function ImmersiveChart({ stock, chart, zones, events, ai, indicatorSnapshot, decisionSummary, interval, onChangeInterval, stockOptions = [], onChangeStock, learningMode, onTermClick }) {
+export default function ImmersiveChart({ stock, chart, zones, events, ai, indicatorSnapshot, decisionSummary, interval, onChangeInterval, stockOptions = [], onChangeStock, learningMode, onTermClick, aiCardExpanded = false }) {
   const toolbarRef = useRef(null);
   const [activePanel, setActivePanel] = useState('none'); // 'none', 'stocks', 'guide', 'ai'
   const [guideTab, setGuideTab] = useState('ma'); // 'ma', 'beginner', 'event'
@@ -250,6 +250,7 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
           ai={ai}
           learningMode={learningMode}
           onTermClick={onTermClick}
+          focusMode={aiCardExpanded}
         />
       </div>
 

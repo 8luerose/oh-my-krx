@@ -97,7 +97,7 @@ function reportRuntimeNote(status, hasReport, runtime, storageNote) {
   return '장후 리포트는 최신 저장 브리프를 기준으로 연결됩니다.';
 }
 
-export default function FloatingAiCard({ ai, events, asOf }) {
+export default function FloatingAiCard({ ai, events, asOf, onExpandedChange }) {
   const [expanded, setExpanded] = useState(false);
 
   if (!ai) return null;
@@ -170,7 +170,11 @@ export default function FloatingAiCard({ ai, events, asOf }) {
     <details
       className={clsx(styles.container, expanded && styles.expanded)}
       aria-label="AI 요약 카드"
-      onToggle={(event) => setExpanded(event.currentTarget.open)}
+      onToggle={(event) => {
+        const nextExpanded = event.currentTarget.open;
+        setExpanded(nextExpanded);
+        onExpandedChange?.(nextExpanded);
+      }}
     >
       {/* Minimized View (1-line summary) */}
       <summary

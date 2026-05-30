@@ -220,7 +220,8 @@ export default function TradingViewPriceChart({
   indicatorSnapshot,
   ai,
   learningMode,
-  onTermClick
+  onTermClick,
+  focusMode = false
 }) {
   const containerRef = useRef(null);
   const chartApiRef = useRef(null);
@@ -737,7 +738,7 @@ export default function TradingViewPriceChart({
   const latest = prepared.rows[prepared.rows.length - 1];
 
   return (
-    <div className={styles.stage}>
+    <div className={clsx(styles.stage, focusMode && styles.aiCardFocusMode)}>
       <div ref={containerRef} className={styles.chart} data-testid="tradingview-price-chart" />
       {chartError && <div className={styles.chartError}>{chartError}</div>}
       <div className={styles.brandBadge}>

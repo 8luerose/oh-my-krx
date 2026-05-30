@@ -156,6 +156,33 @@
 .ma60Dot { background: #f59e0b; }
 .volumeDot { background: rgba(148, 163, 184, 0.6); }
 
+.latestBar,
+.signalPanel,
+.aiDecisionPanel,
+.personalRiskOverlay,
+.newsDirectionPanel,
+.zoneRail,
+.legend,
+.chartControlDock {
+  transition: opacity 0.2s ease, filter 0.2s ease, transform 0.2s ease;
+}
+
+.aiCardFocusMode .latestBar,
+.aiCardFocusMode .signalPanel,
+.aiCardFocusMode .aiDecisionPanel,
+.aiCardFocusMode .personalRiskOverlay,
+.aiCardFocusMode .newsDirectionPanel,
+.aiCardFocusMode .zoneRail {
+  opacity: 0.24;
+  filter: saturate(0.72) blur(0.2px);
+  transform: translateY(6px);
+}
+
+.aiCardFocusMode .legend,
+.aiCardFocusMode .chartControlDock {
+  opacity: 0.48;
+}
+
 .latestBar {
   position: absolute;
   left: clamp(16px, 5vw, 72px);
@@ -1054,6 +1081,16 @@
 }
 
 @media (max-width: 768px) {
+  .aiCardFocusMode .latestBar,
+  .aiCardFocusMode .signalPanel,
+  .aiCardFocusMode .aiDecisionPanel,
+  .aiCardFocusMode .personalRiskOverlay,
+  .aiCardFocusMode .newsDirectionPanel,
+  .aiCardFocusMode .zoneRail {
+    opacity: 0.16;
+    transform: none;
+  }
+
   .legend {
     top: auto;
     left: 12px;
