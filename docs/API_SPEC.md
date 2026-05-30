@@ -620,7 +620,12 @@ pykrx 실패 시 기존 소스(naver) 및 내부 fallback을 사용.
       "matchedKeywords": ["실적", "반도체"],
       "causalFactors": ["실적/이익 개선"],
       "evidenceLevel": "search_result",
-      "summary": "뉴스 검색 결과에서 감지된 요약 후보"
+      "summary": "뉴스 검색 결과에서 감지된 요약 후보",
+      "sourceLabel": "뉴스 검색결과",
+      "impactPath": "실적/이익 개선 기대가 투자심리를 높일 수 있지만 가격과 거래량 확인이 필요합니다.",
+      "beginnerExplanation": "초보자는 실적/이익 개선이라는 말만 보고 바로 사지 말고, 주가가 실제로 버티는지 먼저 봐야 합니다.",
+      "priceCheck": "시초가 급등 추격보다 20일선 위 유지와 거래량 증가를 확인",
+      "whyItMatters": "뉴스 검색결과에서 실적/이익 개선 요인이 확인되어 단기 수급 확인 포인트로 사용합니다."
     }
   ],
   "limitations": [
@@ -633,6 +638,7 @@ pykrx 실패 시 기존 소스(naver) 및 내부 fallback을 사용.
 #### 응답 정책
 
 - `sentiment`는 `positive | negative | mixed | neutral` 중 하나다.
+- `impactPath`, `beginnerExplanation`, `priceCheck`는 Ollama가 호재/악재 이유와 다음 거래일 확인 조건을 쉽게 설명하도록 보강한 필드다.
 - 이 API는 종목 선택 자체를 DB에 저장하지 않는다.
 - 프론트는 이 값을 AI context의 `newsHeadlines`로 넘기고, backend는 ai-service 호출 전에 top-level 필드로 노출한다.
 

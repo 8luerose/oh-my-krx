@@ -286,6 +286,11 @@ def _build_retrieval_documents(req: ChatRequest, subject: str, code: str, topic_
                 "matchedKeywords": headline.get("matchedKeywords"),
                 "causalFactors": headline.get("causalFactors"),
                 "evidenceLevel": headline.get("evidenceLevel"),
+                "sourceLabel": headline.get("sourceLabel"),
+                "impactPath": headline.get("impactPath"),
+                "beginnerExplanation": headline.get("beginnerExplanation"),
+                "priceCheck": headline.get("priceCheck"),
+                "whyItMatters": headline.get("whyItMatters"),
                 "url": headline.get("url"),
             }),
             "basisDate": basis_date,
@@ -2218,6 +2223,13 @@ def _headline_factor_text(headline: dict[str, Any]) -> str:
     return ", ".join(cleaned[:3]) if cleaned else "근거 키워드 확인 필요"
 
 
+def _headline_impact_text(headline: dict[str, Any]) -> str:
+    return _clean(
+        headline.get("impactPath") or headline.get("whyItMatters") or headline.get("summary"),
+        _headline_factor_text(headline),
+    )
+
+
 def _headline_reason_lists(headlines: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
     up_reasons: list[str] = []
     down_risks: list[str] = []
@@ -2228,8 +2240,9 @@ def _headline_reason_lists(headlines: list[dict[str, Any]]) -> tuple[list[str], 
         if not title:
             continue
         factor_text = _headline_factor_text(headline)
+        impact_text = _headline_impact_text(headline)
         sentiment = _clean(headline.get("sentiment"), "").lower()
-        line = f"{title} · 근거: {factor_text}"
+        line = f"{title} · {impact_text} · 근거: {factor_text}"
         if sentiment == "positive" and len(up_reasons) < 3:
             up_reasons.append(line)
         elif sentiment == "negative" and len(down_risks) < 3:
@@ -2264,8 +2277,12 @@ def _headline_analysis_items(headlines: list[dict[str, Any]]) -> list[dict[str, 
                 "title": title,
                 "sentiment": _label(sentiment),
                 "effect": effect,
-                "reason": _headline_factor_text(headline),
+                "reason": _headline_impact_text(headline),
                 "evidenceLevel": _clean(headline.get("evidenceLevel"), "제한적"),
+                "impactPath": _clean(headline.get("impactPath"), ""),
+                "beginnerExplanation": _clean(headline.get("beginnerExplanation"), ""),
+                "priceCheck": _clean(headline.get("priceCheck"), ""),
+                "whyItMatters": _clean(headline.get("whyItMatters"), ""),
             }
         )
     return rows[:4]

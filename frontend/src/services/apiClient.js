@@ -273,7 +273,12 @@ function normalizeNewsHeadline(item = {}) {
     matchedKeywords: Array.isArray(item.matchedKeywords) ? item.matchedKeywords : [],
     causalFactors: Array.isArray(item.causalFactors) ? item.causalFactors : [],
     evidenceLevel: item.evidenceLevel || "search_result",
-    summary: humanizeText(item.summary || item.title || "")
+    summary: humanizeText(item.summary || item.title || ""),
+    sourceLabel: humanizeText(item.sourceLabel || ""),
+    impactPath: humanizeText(item.impactPath || ""),
+    beginnerExplanation: humanizeText(item.beginnerExplanation || ""),
+    priceCheck: humanizeText(item.priceCheck || ""),
+    whyItMatters: humanizeText(item.whyItMatters || "")
   };
 }
 
@@ -461,7 +466,11 @@ function normalizeHeadlineAnalyses(items) {
       sentiment: humanizeText(item?.sentiment || "확인 필요"),
       effect: humanizeText(item?.effect || "확인 필요"),
       reason: humanizeText(item?.reason || ""),
-      evidenceLevel: humanizeText(item?.evidenceLevel || "")
+      evidenceLevel: humanizeText(item?.evidenceLevel || ""),
+      impactPath: humanizeText(item?.impactPath || ""),
+      beginnerExplanation: humanizeText(item?.beginnerExplanation || ""),
+      priceCheck: humanizeText(item?.priceCheck || ""),
+      whyItMatters: humanizeText(item?.whyItMatters || "")
     };
   }).filter((item) => item.title);
 }
@@ -798,7 +807,12 @@ function compactNewsForAi(news) {
     matchedKeywords: headline.matchedKeywords,
     causalFactors: headline.causalFactors,
     evidenceLevel: headline.evidenceLevel,
-    summary: headline.summary
+    summary: headline.summary,
+    sourceLabel: headline.sourceLabel,
+    impactPath: headline.impactPath,
+    beginnerExplanation: headline.beginnerExplanation,
+    priceCheck: headline.priceCheck,
+    whyItMatters: headline.whyItMatters
   }));
 }
 

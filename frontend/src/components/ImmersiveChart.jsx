@@ -386,7 +386,7 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
       92
     );
     const action = firstPanelItem(
-      sentiment.actionGuide || sentiment.tradingScenarios,
+      headline?.priceCheck ? [headline.priceCheck, ...(sentiment.actionGuide || sentiment.tradingScenarios || [])] : sentiment.actionGuide || sentiment.tradingScenarios,
       loading ? '로컬 AI 답변이 붙기 전까지는 원문 뉴스와 거래량 변화를 함께 봅니다.' : '뉴스 원문과 거래량 반응을 함께 확인합니다.',
       98
     );
@@ -395,7 +395,7 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
     return {
       title: compactPanelText(headline?.title || fallbackHeadline, loading ? '뉴스 헤드라인 문맥 계산 중' : '뉴스 헤드라인 확인 필요', 96),
       effect: compactPanelText(effect, '확인 필요', 28),
-      reason: compactPanelText(headline?.reason || sentiment.llmContextReason || sentiment.summary, loading ? '뉴스 제목과 이벤트를 함께 읽어 단기 방향을 계산합니다.' : '뉴스 문맥 근거를 확인합니다.', 104),
+      reason: compactPanelText(headline?.impactPath || headline?.reason || sentiment.llmContextReason || sentiment.summary, loading ? '뉴스 제목과 이벤트를 함께 읽어 단기 방향을 계산합니다.' : '뉴스 문맥 근거를 확인합니다.', 104),
       upReason,
       downRisk,
       action,

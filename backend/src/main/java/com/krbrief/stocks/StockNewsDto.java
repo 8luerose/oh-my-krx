@@ -19,5 +19,10 @@ public record StockNewsDto(
       List<String> matchedKeywords,
       List<String> causalFactors,
       String evidenceLevel,
-      String summary) {}
+      String summary,
+      String sourceLabel,
+      String impactPath,
+      String beginnerExplanation,
+      String priceCheck,
+      String whyItMatters) {}
 }

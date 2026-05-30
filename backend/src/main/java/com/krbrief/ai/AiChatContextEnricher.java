@@ -224,6 +224,11 @@ public class AiChatContextEnricher {
                       out.put("causalFactors", headline.causalFactors());
                       out.put("evidenceLevel", headline.evidenceLevel());
                       out.put("summary", headline.summary());
+                      out.put("sourceLabel", headline.sourceLabel());
+                      out.put("impactPath", headline.impactPath());
+                      out.put("beginnerExplanation", headline.beginnerExplanation());
+                      out.put("priceCheck", headline.priceCheck());
+                      out.put("whyItMatters", headline.whyItMatters());
                       return out;
                     })
                 .toList());

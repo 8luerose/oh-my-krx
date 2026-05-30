@@ -568,7 +568,11 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
                           <article key={`${item.title}-${index}`}>
                             <b className={effectClass(item.effect)}>{item.effect}</b>
                             <span>{item.title}</span>
-                            <em>{item.reason}{item.evidenceLevel ? ` · 근거 ${item.evidenceLevel}` : ''}</em>
+                            <em>
+                              {item.reason}
+                              {item.priceCheck ? ` · 확인 ${item.priceCheck}` : ''}
+                              {item.evidenceLevel ? ` · 근거 ${item.evidenceLevel}` : ''}
+                            </em>
                           </article>
                         ))}
                       </div>

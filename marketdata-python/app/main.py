@@ -1020,6 +1020,47 @@ def _clean_news_headline_title(text: str) -> str:
     return cleaned if cleaned else "뉴스 제목 확인 필요"
 
 
+def _news_source_label(signal_origin: str) -> str:
+    return {
+        "article_body": "뉴스 본문",
+        "search_result": "뉴스 검색결과",
+        "dart_search_row": "DART 공시 목록",
+        "dart_filing_detail": "DART 공시 본문",
+    }.get(str(signal_origin or ""), "뉴스 후보")
+
+
+def _news_impact_text(direction: str, factors: list[str], title: str) -> str:
+    factor_text = ", ".join([str(item) for item in factors[:2] if item]) or "뉴스 문맥"
+    if direction == "positive":
+        return f"{factor_text} 기대가 투자심리를 높일 수 있지만 가격과 거래량 확인이 필요합니다."
+    if direction == "negative":
+        return f"{factor_text} 우려가 매도 압력으로 이어질 수 있어 지지선 이탈 여부를 확인해야 합니다."
+    if direction == "mixed":
+        return f"{factor_text} 재료는 긍정과 부담이 함께 있어 한 방향으로 단정하기 어렵습니다."
+    return f"{title or '해당 뉴스'}는 방향성이 약하므로 가격 반응이 먼저입니다."
+
+
+def _news_price_check(direction: str) -> str:
+    if direction == "positive":
+        return "시초가 급등 추격보다 20일선 위 유지와 거래량 증가를 확인"
+    if direction == "negative":
+        return "20일선 이탈, 장대음봉, 하락 거래량 증가 여부 확인"
+    if direction == "mixed":
+        return "첫 30분 방향과 전일 고가·저가 돌파 여부 확인"
+    return "뉴스보다 현재가, 20일선, 거래량 반응을 우선 확인"
+
+
+def _news_beginner_text(direction: str, factors: list[str]) -> str:
+    factor_text = ", ".join([str(item) for item in factors[:2] if item]) or "뉴스 제목"
+    if direction == "positive":
+        return f"초보자는 {factor_text}라는 말만 보고 바로 사지 말고, 주가가 실제로 버티는지 먼저 봐야 합니다."
+    if direction == "negative":
+        return f"초보자는 {factor_text} 뉴스가 나오면 손실 확대를 막는 기준선을 먼저 정해야 합니다."
+    if direction == "mixed":
+        return f"초보자는 좋은 말과 부담 요인이 섞인 뉴스로 보고, 매수·매도 판단을 하루 더 나눠 확인하는 편이 안전합니다."
+    return "초보자는 이 뉴스만으로 방향을 정하지 말고 차트 반응을 함께 확인해야 합니다."
+
+
 def _news_headline_items(code: str, name: str, limit: int = 8) -> list[dict]:
     items: list[dict] = []
     raw_signals = list(_naver_news_text_signals(code, name))
@@ -1038,6 +1079,8 @@ def _news_headline_items(code: str, name: str, limit: int = 8) -> list[dict]:
         direction = str(signal.get("causalDirection") or "neutral")
         if direction not in {"positive", "negative", "mixed", "neutral"}:
             direction = "neutral"
+        factors = signal.get("causalFactors", [])[:6]
+        source_label = _news_source_label(signal.get("signalOrigin", "search_result"))
         items.append(
             {
                 "title": title,
@@ -1045,9 +1088,14 @@ def _news_headline_items(code: str, name: str, limit: int = 8) -> list[dict]:
                 "sourceType": signal.get("sourceType", "news"),
                 "sentiment": direction,
                 "matchedKeywords": signal.get("matchedKeywords", [])[:8],
-                "causalFactors": signal.get("causalFactors", [])[:6],
+                "causalFactors": factors,
                 "evidenceLevel": signal.get("signalOrigin", "search_result"),
                 "summary": signal.get("signalSummary") or text[:220],
+                "sourceLabel": source_label,
+                "impactPath": _news_impact_text(direction, factors, title),
+                "beginnerExplanation": _news_beginner_text(direction, factors),
+                "priceCheck": _news_price_check(direction),
+                "whyItMatters": f"{source_label}에서 {', '.join(factors[:3]) if factors else '방향 단서'} 요인이 확인되어 단기 수급 확인 포인트로 사용합니다.",
             }
         )
         if len(items) >= limit:
