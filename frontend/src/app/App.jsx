@@ -17,16 +17,17 @@ function intervalLabel(interval) {
 }
 
 function buildPipelineToast({ data, activeCode, interval, loading }) {
+  const waitingAiSteps = [
+    { label: '상담', state: 'waiting' },
+    { label: '뉴스', state: 'waiting' },
+    { label: '장후', state: 'waiting' }
+  ];
   if (!data && loading) {
     return {
       title: '초기 차트 준비 중',
       detail: 'TradingView 차트와 기본 브리프를 불러오고 있습니다.',
       tone: 'loading',
-      steps: [
-        { label: '차트', state: 'loading' },
-        { label: 'Ollama', state: 'waiting' },
-        { label: '장후', state: 'waiting' }
-      ]
+      steps: waitingAiSteps
     };
   }
   if (!data) return null;
@@ -36,36 +37,34 @@ function buildPipelineToast({ data, activeCode, interval, loading }) {
       title: `${activeCode} 차트 불러오는 중`,
       detail: `${intervalLabel(interval)} 차트, 매매 구간, 뉴스 근거를 먼저 준비합니다.`,
       tone: 'loading',
-      steps: [
-        { label: '차트', state: 'loading' },
-        { label: 'Ollama', state: 'waiting' },
-        { label: '장후', state: 'waiting' }
-      ]
+      steps: waitingAiSteps
     };
   }
 
   const aiStatus = data.ai?.aiLayerStatus || (data.ai?.ollamaInsights ? 'ready' : '');
+  const ollamaStatus = data.ai?.ollamaInsightsStatus
+    || (data.ai?.ollamaInsights ? 'ready' : aiStatus === 'ollama_failed' ? 'failed' : aiStatus === 'loading' ? 'loading' : 'waiting');
   const reportStatus = data.ai?.marketReportStatus || (data.ai?.marketReport ? 'ready' : '');
-  if (aiStatus === 'loading') {
+  if (ollamaStatus === 'loading') {
     return {
-      title: `${data.stock?.name || activeCode} Ollama 상담 중`,
-      detail: '차트·재무·뉴스·센티멘트를 묶어 매수/관망/매도 조건을 계산합니다.',
+      title: `${data.stock?.name || activeCode} Ollama 3대 기능 실행 중`,
+      detail: '상담 의견과 뉴스 방향을 계산하고, 장후 리포트 저장본을 함께 확인합니다.',
       tone: 'loading',
       steps: [
-        { label: '차트', state: 'ready' },
-        { label: 'Ollama', state: 'loading' },
+        { label: '상담', state: 'loading' },
+        { label: '뉴스', state: 'loading' },
         { label: '장후', state: reportStatus === 'ready' ? 'ready' : 'loading' }
       ]
     };
   }
-  if (aiStatus === 'ollama_failed') {
+  if (ollamaStatus === 'failed') {
     return {
       title: 'Ollama 응답 지연',
       detail: '화면은 규칙형 근거로 유지하고, 로컬 LLM 응답은 다시 붙일 수 있습니다.',
       tone: 'delayed',
       steps: [
-        { label: '차트', state: 'ready' },
-        { label: 'Ollama', state: 'delayed' },
+        { label: '상담', state: 'delayed' },
+        { label: '뉴스', state: 'delayed' },
         { label: '장후', state: reportStatus === 'ready' ? 'ready' : 'waiting' }
       ]
     };
@@ -76,8 +75,8 @@ function buildPipelineToast({ data, activeCode, interval, loading }) {
       detail: '저장된 일간 브리프에 Ollama 시장 코멘트를 연결하고 있습니다.',
       tone: 'loading',
       steps: [
-        { label: '차트', state: 'ready' },
-        { label: 'Ollama', state: 'ready' },
+        { label: '상담', state: 'ready' },
+        { label: '뉴스', state: 'ready' },
         { label: '장후', state: 'loading' }
       ]
     };

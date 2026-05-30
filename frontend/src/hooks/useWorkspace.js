@@ -41,6 +41,7 @@ export function useWorkspace(initialCode = '005930', initialInterval = 'daily') 
           ai: {
             ...workspaceData.ai,
             aiLayerStatus: 'loading',
+            ollamaInsightsStatus: 'loading',
             marketReportStatus: 'loading',
             llmProvider: 'ollama',
             modeLabel: 'Ollama 로컬 LLM 준비 중'
@@ -93,6 +94,7 @@ export function useWorkspace(initialCode = '005930', initialInterval = 'daily') 
                   ai: {
                     ...ai,
                     ollamaInsights: currentAi.ollamaInsights,
+                    ollamaInsightsStatus: currentAi.ollamaInsightsStatus || (currentAi.ollamaInsights ? 'ready' : 'loading'),
                     marketReport: currentAi.marketReport,
                     marketReportStatus: currentAi.marketReportStatus,
                     aiLayerStatus: currentAi.ollamaInsights ? 'ready' : 'fallback_ready',
@@ -117,6 +119,7 @@ export function useWorkspace(initialCode = '005930', initialInterval = 'daily') 
                   ai: {
                     ...current.ai,
                     ollamaInsights,
+                    ollamaInsightsStatus: 'ready',
                     aiLayerStatus: 'ready',
                     modeLabel: ollamaInsights.modeLabel,
                     llmModel: ollamaInsights.model,
@@ -131,6 +134,7 @@ export function useWorkspace(initialCode = '005930', initialInterval = 'daily') 
                   ...current,
                   ai: {
                     ...current.ai,
+                    ollamaInsightsStatus: 'failed',
                     aiLayerStatus: current.ai?.aiLayerStatus === 'fallback_ready' ? 'fallback_ready' : 'ollama_failed',
                     modeLabel: 'Ollama 응답 지연, 규칙형 근거 유지'
                   }

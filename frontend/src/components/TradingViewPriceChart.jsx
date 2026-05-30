@@ -388,9 +388,10 @@ export default function TradingViewPriceChart({
 
   const aiDecision = useMemo(() => {
     const insights = ai?.ollamaInsights;
-    const aiLayerStatus = ai?.aiLayerStatus || (insights ? 'ready' : '');
-    const isWaitingForOllama = aiLayerStatus === 'loading' && !insights;
-    const isOllamaDelayed = aiLayerStatus === 'ollama_failed' && !insights;
+    const ollamaStatus = ai?.ollamaInsightsStatus
+      || (insights ? 'ready' : ai?.aiLayerStatus === 'ollama_failed' ? 'failed' : ai?.aiLayerStatus === 'loading' ? 'loading' : 'waiting');
+    const isWaitingForOllama = ollamaStatus === 'loading' && !insights;
+    const isOllamaDelayed = ollamaStatus === 'failed' && !insights;
     const advice = insights?.stockAdvice || {};
     const sentiment = insights?.newsSentiment || {};
     const report = insights?.afterMarketReport || {};
@@ -461,8 +462,9 @@ export default function TradingViewPriceChart({
 
   const newsDirection = useMemo(() => {
     const insights = ai?.ollamaInsights;
-    const aiLayerStatus = ai?.aiLayerStatus || (insights ? 'ready' : '');
-    const isWaitingForOllama = aiLayerStatus === 'loading' && !insights;
+    const ollamaStatus = ai?.ollamaInsightsStatus
+      || (insights ? 'ready' : ai?.aiLayerStatus === 'ollama_failed' ? 'failed' : ai?.aiLayerStatus === 'loading' ? 'loading' : 'waiting');
+    const isWaitingForOllama = ollamaStatus === 'loading' && !insights;
     if (!insights && !isWaitingForOllama) return null;
 
     const sentiment = insights?.newsSentiment || {};

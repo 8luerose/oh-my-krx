@@ -84,10 +84,11 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
 
   const aiExecutionSteps = useMemo(() => {
     const insights = ai?.ollamaInsights;
-    const aiLayerStatus = ai?.aiLayerStatus || (insights ? 'ready' : '');
+    const ollamaStatus = ai?.ollamaInsightsStatus
+      || (insights ? 'ready' : ai?.aiLayerStatus === 'ollama_failed' ? 'failed' : ai?.aiLayerStatus === 'loading' ? 'loading' : 'waiting');
     const marketReportStatus = ai?.marketReportStatus || (ai?.marketReport ? 'ready' : '');
-    const isLoading = aiLayerStatus === 'loading';
-    const isDelayed = aiLayerStatus === 'ollama_failed';
+    const isLoading = ollamaStatus === 'loading';
+    const isDelayed = ollamaStatus === 'failed';
     const adviceDecision = insights?.stockAdvice?.decision || (isLoading ? '분석 중' : '대기');
     const newsDirection = insights?.newsSentiment?.nextTradingDay;
     const newsText = insights
