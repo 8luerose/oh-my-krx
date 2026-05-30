@@ -737,6 +737,10 @@
 .forecastHud p,
 .forecastHud em,
 .forecastHud small,
+.decisionCompass span,
+.decisionCompass em,
+.decisionCompass b,
+.decisionCompass small,
 .forecastLevelGrid span,
 .forecastLevelGrid b,
 .forecastActionStrip span,
@@ -835,6 +839,81 @@
   font-weight: 950;
   line-height: 1.2;
 }
+
+.decisionCompass {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.decisionCompass span {
+  display: grid;
+  gap: 3px;
+  min-height: 54px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 7px;
+  background: rgba(15, 23, 42, 0.42);
+  padding: 6px;
+}
+
+.decisionCompass em {
+  color: rgba(226, 232, 240, 0.58);
+  font-size: 0.6rem;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1.12;
+}
+
+.decisionCompass b {
+  color: #f8fafc;
+  font-size: 0.68rem;
+  font-weight: 950;
+  line-height: 1.14;
+}
+
+.decisionCompass small {
+  color: rgba(226, 232, 240, 0.48);
+  font-size: 0.58rem;
+  font-weight: 760;
+  line-height: 1.14;
+}
+
+.decisionCompassUp {
+  border-color: rgba(34, 197, 94, 0.26) !important;
+  background: rgba(34, 197, 94, 0.1) !important;
+}
+
+.decisionCompassUp b { color: #bbf7d0; }
+
+.decisionCompassWatch,
+.decisionCompassZoneActive {
+  border-color: rgba(96, 165, 250, 0.28) !important;
+  background: rgba(37, 99, 235, 0.14) !important;
+}
+
+.decisionCompassWatch b,
+.decisionCompassZoneActive b { color: #dbeafe; }
+
+.decisionCompassDefense {
+  border-color: rgba(249, 115, 22, 0.3) !important;
+  background: rgba(249, 115, 22, 0.1) !important;
+}
+
+.decisionCompassDefense b { color: #fed7aa; }
+
+.decisionCompassPersonal {
+  border-color: rgba(56, 189, 248, 0.3) !important;
+  background: rgba(14, 165, 233, 0.12) !important;
+}
+
+.decisionCompassPersonal b { color: #bae6fd; }
+
+.decisionCompassMissing {
+  border-color: rgba(148, 163, 184, 0.14) !important;
+  background: rgba(15, 23, 42, 0.32) !important;
+}
+
+.decisionCompassMissing b { color: rgba(226, 232, 240, 0.58); }
 
 .forecastActionStrip {
   display: grid;
@@ -1886,8 +1965,17 @@
     display: none;
   }
 
-  .forecastLevelGrid {
-    grid-template-columns: 1fr;
+  .decisionCompass {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .decisionCompass span {
+    min-height: 46px;
+    padding: 5px;
+  }
+
+  .decisionCompass small {
+    display: none;
   }
 
   .aiDecisionPanel p,

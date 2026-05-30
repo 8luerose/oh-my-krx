@@ -695,6 +695,50 @@ export default function TradingViewPriceChart({
     };
   }, [ai, aiDecision, chartMetrics]);
 
+  const decisionCompass = useMemo(() => {
+    if (!forecastGuide) return [];
+    const activeZone = zoneSummaries.find((zone) => zone.relation?.tone === 'inside')
+      || [...zoneSummaries].sort((a, b) => (a.relation?.distance ?? 999) - (b.relation?.distance ?? 999))[0];
+    const personalLine = personalPriceLines.find((line) => line.key === 'average') || personalPriceLines[0];
+    return [
+      {
+        key: 'up',
+        label: '상승 확인',
+        value: formatCurrency(forecastGuide.upTrigger),
+        note: '돌파 후 거래량',
+        tone: 'up'
+      },
+      {
+        key: 'watch',
+        label: '관망 기준',
+        value: formatCurrency(forecastGuide.watchBase),
+        note: '20일선 중심',
+        tone: 'watch'
+      },
+      {
+        key: 'defense',
+        label: '방어 기준',
+        value: formatCurrency(forecastGuide.defenseBase),
+        note: '이탈 시 리스크',
+        tone: 'defense'
+      },
+      {
+        key: 'zone',
+        label: 'AI 구간',
+        value: activeZone?.price || (activeZone ? formatCurrency(activeZone.midPrice) : '확인 필요'),
+        note: activeZone?.label || zoneMapSummary || '가격 구간',
+        tone: activeZone?.relation?.tone === 'inside' ? 'zoneActive' : 'zone'
+      },
+      {
+        key: 'personal',
+        label: '내 기준',
+        value: personalLine?.valueText || personalContextValue,
+        note: hasPersonalContext ? personalLine?.shortLabel || '평균단가' : '평단 미저장',
+        tone: hasPersonalContext ? 'personal' : 'missing'
+      }
+    ];
+  }, [forecastGuide, hasPersonalContext, personalContextValue, personalPriceLines, zoneMapSummary, zoneSummaries]);
+
   const hoverInsight = useMemo(() => {
     if (!hover || !aiDecision) return null;
     const close = Number(hover.close);
@@ -1066,20 +1110,39 @@ export default function TradingViewPriceChart({
             <strong>{forecastGuide.agreementLabel}</strong>
           </div>
           <p>{forecastGuide.headline}</p>
-          <div className={styles.forecastLevelGrid}>
-            <span>상승 확인 <b>{formatCurrency(forecastGuide.upTrigger)}</b></span>
-            <span>관망 기준 <b>{formatCurrency(forecastGuide.watchBase)}</b></span>
-            <span>방어 기준 <b>{formatCurrency(forecastGuide.defenseBase)}</b></span>
-          </div>
-          <div className={styles.forecastActionStrip} aria-label="AI 매수 관망 매도 행동 기준">
-            {forecastGuide.actionChecks.map((item) => (
-              <span key={`${item.label}-${item.value}`}>
+          <div className={styles.decisionCompass} aria-label="AI 가격 기준 빠른 비교">
+            {decisionCompass.map((item) => (
+              <span
+                key={item.key}
+                className={clsx(
+                  item.tone === 'up' && styles.decisionCompassUp,
+                  item.tone === 'watch' && styles.decisionCompassWatch,
+                  item.tone === 'defense' && styles.decisionCompassDefense,
+                  item.tone === 'zoneActive' && styles.decisionCompassZoneActive,
+                  item.tone === 'personal' && styles.decisionCompassPersonal,
+                  item.tone === 'missing' && styles.decisionCompassMissing
+                )}
+                aria-label={`${item.label} ${item.value} ${item.note}`}
+              >
                 <em>{item.label}</em>
+                {' '}
                 <b>{item.value}</b>
+                {' '}
+                <small>{item.note}</small>
               </span>
             ))}
           </div>
-          {forecastGuide.signals.length > 0 && (
+          {showDetailPanels && (
+            <div className={styles.forecastActionStrip} aria-label="AI 매수 관망 매도 행동 기준">
+              {forecastGuide.actionChecks.map((item) => (
+                <span key={`${item.label}-${item.value}`}>
+                  <em>{item.label}</em>
+                  <b>{item.value}</b>
+                </span>
+              ))}
+            </div>
+          )}
+          {showDetailPanels && forecastGuide.signals.length > 0 && (
             <div className={styles.forecastSignalStrip} aria-label="상담 뉴스 장후 연결 상태">
               {forecastGuide.signals.map((signal) => (
                 <span
