@@ -142,6 +142,13 @@ function probabilityValue(value) {
   return Number.isFinite(number) ? Math.max(0, Math.min(100, Math.round(number))) : null;
 }
 
+function fundamentalStatusLabel(summary, riskNotes = []) {
+  const text = [summary, ...(Array.isArray(riskNotes) ? riskNotes : [])].filter(Boolean).join(' ');
+  if (!text) return '재무 확인';
+  if (/없어|비어|못했습니다|제한|확인 필요|별도로 확인/.test(text)) return '재무 제한';
+  return '재무 반영';
+}
+
 export default function TradingViewPriceChart({
   stock,
   interval = 'daily',
@@ -328,6 +335,7 @@ export default function TradingViewPriceChart({
     const positiveReason = firstCompact(sentiment.upReasons, '좋게 볼 근거는 가격 반응과 거래량으로 재확인해야 합니다.');
     const cautionReason = firstCompact(sentiment.downRisks, sentiment.caution || '반대 신호와 뉴스 원문을 확인해야 합니다.');
     const nextWatch = firstCompact(report.nextWatch, primaryCondition);
+    const fundamentalLabel = fundamentalStatusLabel(ai?.fundamentalGuidance?.summary, advice.riskNotes).replace(/^재무\s*/, '');
     const model = insights?.model || ai?.llmModel || '';
     const modeLabel = insights?.modeLabel || ai?.modeLabel || '근거 기반 AI';
     const title = insights
@@ -353,6 +361,7 @@ export default function TradingViewPriceChart({
       down: Number.isFinite(down) ? down : null,
       flat: Number.isFinite(flat) ? flat : null,
       mood: compactText(report.mood, '장후 분위기 확인 중', 24),
+      fundamentalLabel,
       primaryCondition,
       positiveReason,
       cautionReason,
@@ -733,9 +742,10 @@ export default function TradingViewPriceChart({
           </div>
           <p>{aiDecision.summary}</p>
           <div className={styles.aiDecisionStats}>
-            <span>상승 <strong>{aiDecision.up === null ? '확인 중' : `${aiDecision.up}%`}</strong></span>
-            <span>하락 <strong>{aiDecision.down === null ? '확인 중' : `${aiDecision.down}%`}</strong></span>
-            <span>{aiDecision.mood}</span>
+            <span>뉴스 상승 <strong>{aiDecision.up === null ? '확인 중' : `${aiDecision.up}%`}</strong></span>
+            <span>뉴스 하락 <strong>{aiDecision.down === null ? '확인 중' : `${aiDecision.down}%`}</strong></span>
+            <span>재무 <strong>{aiDecision.fundamentalLabel}</strong></span>
+            <span>장후 <strong>{aiDecision.mood}</strong></span>
           </div>
           <div className={styles.aiDecisionReasonGrid}>
             <div>

@@ -45,6 +45,13 @@ function leaderName(entry, fallback) {
   return entry?.name && entry.name !== '-' ? entry.name : fallback;
 }
 
+function fundamentalStatusLabel(summary, riskNotes = []) {
+  const text = [summary, ...(Array.isArray(riskNotes) ? riskNotes : [])].filter(Boolean).join(' ');
+  if (!text) return '재무 확인';
+  if (/없어|비어|못했습니다|제한|확인 필요|별도로 확인/.test(text)) return '재무 제한';
+  return '재무 반영';
+}
+
 export default function FloatingAiCard({ ai, events, asOf }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -71,6 +78,7 @@ export default function FloatingAiCard({ ai, events, asOf }) {
     ? [ai.marketReport.mood, ai.marketReport.marketBias].filter(Boolean).join(' · ')
     : afterMarketReport.mood || '장후 리포트 확인 중';
   const reportSummary = ai.marketReport?.llmComment || afterMarketReport.llmComment || '장후 브리프와 시장 분위기 코멘트를 확인합니다.';
+  const fundamentalLabel = fundamentalStatusLabel(ai.fundamentalGuidance?.summary, stockAdvice.riskNotes);
   const marketDashboard = ai.marketReport?.marketDashboard || null;
   const topGainer = marketDashboard?.topGainer || null;
   const topLoser = marketDashboard?.topLoser || null;
@@ -97,6 +105,7 @@ export default function FloatingAiCard({ ai, events, asOf }) {
           {insights && (
             <div className={styles.miniOllamaStrip} aria-label="Ollama 핵심 인사이트">
               <span>상담 {adviceDecision}</span>
+              <span>{fundamentalLabel}</span>
               <span>뉴스 상승 {probabilityLabel(nextTradingDay.up)}</span>
               <span>장후 {afterMarketReport.mood || '확인 중'}</span>
               {ai.marketReport?.mood && <span>장후 {ai.marketReport.mood}</span>}
