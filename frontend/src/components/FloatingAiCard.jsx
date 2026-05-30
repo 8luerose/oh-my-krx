@@ -616,6 +616,11 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
                   <div>
                     <strong>{afterMarketReport.mood || '장후 확인 중'}</strong>
                     <p>{afterMarketReport.llmComment || reportSummary}</p>
+                    {(afterMarketReport.stockImpact || afterMarketReport.marketReadThrough) && (
+                      <p className={styles.sessionBrief}>
+                        {afterMarketReport.stockImpact || afterMarketReport.marketReadThrough}
+                      </p>
+                    )}
                     {afterMarketReport.keyPoints?.length > 0 && (
                       <ul className={styles.compactList}>
                         {afterMarketReport.keyPoints.slice(0, 3).map((item, index) => (
@@ -628,6 +633,16 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
                         <strong>장후 리포트 보고 할 행동</strong>
                         <ul>
                           {afterMarketReport.actionPlan.slice(0, 2).map((item, index) => (
+                            <li key={`${item}-${index}`}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {afterMarketReport.tomorrowChecklist?.length > 0 && (
+                      <div className={styles.nextWatchBox}>
+                        <strong>내일 종목 체크</strong>
+                        <ul>
+                          {afterMarketReport.tomorrowChecklist.slice(0, 2).map((item, index) => (
                             <li key={`${item}-${index}`}>{item}</li>
                           ))}
                         </ul>
@@ -726,6 +741,9 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
                   {ai.marketReport?.sessionBrief && (
                     <p className={styles.sessionBrief}>{ai.marketReport.sessionBrief}</p>
                   )}
+                  {ai.marketReport?.marketReadThrough && (
+                    <p className={styles.sessionBrief}>{ai.marketReport.marketReadThrough}</p>
+                  )}
                   {marketDashboard && (
                     <div className={styles.marketDashboard} aria-label="장후 시장 대시보드">
                       <div>
@@ -771,6 +789,16 @@ export default function FloatingAiCard({ ai, events, asOf, onExpandedChange, onR
                   <strong>장후 리포트 다음 확인</strong>
                   <ul>
                     {ai.marketReport.nextWatch.slice(0, 3).map((item, index) => (
+                      <li key={`${item}-${index}`}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {ai.marketReport?.tomorrowChecklist?.length > 0 && (
+                <div className={styles.nextWatchBox}>
+                  <strong>내일 시장 체크리스트</strong>
+                  <ul>
+                    {ai.marketReport.tomorrowChecklist.slice(0, 3).map((item, index) => (
                       <li key={`${item}-${index}`}>{item}</li>
                     ))}
                   </ul>

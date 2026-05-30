@@ -48,6 +48,15 @@ def _clean(value: Any, fallback: str = "-") -> str:
     return text if text else fallback
 
 
+def _topic_subject(subject: Any, code: Any | None = None) -> str:
+    name = _clean(subject, "선택 종목")
+    label = f"{name}{f'({code})' if code else ''}"
+    last = name[-1]
+    hangul_offset = ord(last) - 0xAC00
+    particle = "은" if 0 <= hangul_offset <= 11171 and hangul_offset % 28 else "는"
+    return f"{label}{particle}"
+
+
 def _friendly_llm_fallback_reason(value: Any) -> str:
     reason = _clean(value, "")
     if not reason:
@@ -1124,13 +1133,13 @@ def _build_structured_answer(
         evidence.append("제공된 검색, 브리프, 차트, 이벤트 근거가 제한적입니다.")
 
     if code and decision:
-        conclusion = f"{subject}({code})은(는) {basis_date} 기준 {_clean(decision.get('summary'), '조건부 검토가 필요합니다.')}"
+        conclusion = f"{_topic_subject(subject, code)} {basis_date} 기준 {_clean(decision.get('summary'), '조건부 검토가 필요합니다.')}"
     elif code and events:
-        conclusion = f"{subject}({code})은(는) {basis_date} 기준 차트 이벤트가 있어 가격과 거래량을 함께 확인해야 합니다."
+        conclusion = f"{_topic_subject(subject, code)} {basis_date} 기준 차트 이벤트가 있어 가격과 거래량을 함께 확인해야 합니다."
     elif code:
-        conclusion = f"{subject}({code})은(는) {basis_date} 기준 차트/검색 근거로 조건부 검토가 필요합니다."
+        conclusion = f"{_topic_subject(subject, code)} {basis_date} 기준 차트/검색 근거로 조건부 검토가 필요합니다."
     else:
-        conclusion = f"{subject}은(는) {basis_date} 기준 검색/브리프 근거로 시장 맥락을 먼저 확인해야 합니다."
+        conclusion = f"{_topic_subject(subject)} {basis_date} 기준 검색/브리프 근거로 시장 맥락을 먼저 확인해야 합니다."
 
     buy_review = _decision_field(
         decision,
@@ -2463,6 +2472,52 @@ def _summary_points(summary: dict[str, Any] | None) -> list[str]:
     return list(dict.fromkeys(points)) or ["저장 브리프의 핵심 지표가 제한적입니다."]
 
 
+def _after_market_stock_impact(
+    subject: str,
+    mood: str,
+    decision: str,
+    probabilities: dict[str, int],
+    ma20: dict[str, str],
+) -> str:
+    up = probabilities.get("up", 0)
+    down = probabilities.get("down", 0)
+    topic = _topic_subject(subject)
+    if "위험" in mood or down >= up + 8 or "매도" in decision:
+        return (
+            f"{topic} 장후 분위기와 단기 확률을 함께 보면 추격보다 방어 기준이 먼저입니다. "
+            f"다음 거래일에는 20일선 {ma20['ma20']} 이탈과 하락 거래량 증가를 우선 확인합니다."
+        )
+    if "관심" in mood and up >= down + 8 and "매도" not in decision:
+        return (
+            f"{topic} 장후 관심 분위기가 실제 거래량으로 이어지는지 확인할 후보입니다. "
+            f"현재가가 20일선 {ma20['ma20']} 위에서 버티고 전일 고점을 돌파하는지 봅니다."
+        )
+    return (
+        f"{topic} 시장 분위기만으로 결론을 내리기보다 선별 접근이 필요합니다. "
+        f"20일선 {ma20['ma20']}, 첫 30분 거래량, 뉴스 원문 방향이 같은지 확인합니다."
+    )
+
+
+def _after_market_tomorrow_checklist(
+    subject: str,
+    mood: str,
+    probabilities: dict[str, int],
+    ma20: dict[str, str],
+) -> list[str]:
+    up = probabilities.get("up", 0)
+    down = probabilities.get("down", 0)
+    checklist = [
+        f"{subject} 현재가가 20일선 {ma20['ma20']} 위에서 시작하고 유지되는지 확인",
+        f"첫 30분 상승 확률 {up}%·하락 확률 {down}%와 실제 거래량 방향 비교",
+        "장후 리포트의 상승·하락 리더 재료가 내 종목 업종으로 번지는지 확인",
+    ]
+    if "위험" in mood or down >= up + 8:
+        checklist[0] = f"{subject}이 20일선 {ma20['ma20']} 아래로 밀리면 관망 또는 방어 기준 우선"
+    elif "관심" in mood and up >= down + 8:
+        checklist[1] = "전일 고점 돌파 후 거래량이 붙는지 확인하고, 급등 시 바로 추격하지 않기"
+    return checklist
+
+
 def _fallback_ollama_insights(
     req: ChatRequest,
     subject: str,
@@ -2494,6 +2549,9 @@ def _fallback_ollama_insights(
     decision_reason = _decision_reason(decision, score, ma20)
     report_comment = _after_market_comment(subject, decision, score, probabilities, summary_points)
     trade_timing = _trade_timing_plan(decision, ma20, probabilities, personal_adjustment, req)
+    report_mood = "위험 관리 우선" if score < -20 else "선별 접근" if score < 25 else "관심 확대"
+    stock_impact = _after_market_stock_impact(subject, report_mood, decision, probabilities, ma20)
+    tomorrow_checklist = _after_market_tomorrow_checklist(subject, report_mood, probabilities, ma20)
     beginner_coach = _beginner_coach_card(
         decision,
         score,
@@ -2526,7 +2584,7 @@ def _fallback_ollama_insights(
         "model": _clean(llm_meta.get("model"), ""),
         "basisDate": basis_date,
         "answer": (
-            f"{subject}{f'({code})' if code else ''}은(는) 현재 {decision} 의견입니다. "
+            f"{_topic_subject(subject, code)} 현재 {decision} 의견입니다. "
             f"{ma20['positionLabel']} 상태이고 뉴스/이벤트 점수는 {score}점입니다. 다음 거래일 확률은 상승 {probabilities['up']}%, "
             f"하락 {probabilities['down']}%, 횡보 {probabilities['flat']}%입니다.{personal_answer_sentence} "
             "이 응답은 제공된 차트, 뉴스, 이벤트 근거를 바탕으로 한 조건형 참고입니다."
@@ -2593,9 +2651,12 @@ def _fallback_ollama_insights(
         },
         "afterMarketReport": {
             "title": "매일 장후 시장 요약 리포트",
-            "mood": "위험 관리 우선" if score < -20 else "선별 접근" if score < 25 else "관심 확대",
+            "mood": report_mood,
             "keyPoints": summary_points,
             "llmComment": report_comment,
+            "stockImpact": stock_impact,
+            "marketReadThrough": f"장후 분위기는 {report_mood}이며, {subject} 판단에는 뉴스 확률과 20일선 위치를 같이 적용합니다.",
+            "tomorrowChecklist": tomorrow_checklist,
             "nextWatch": [
                 f"다음 거래일 현재가가 20일선 {ma20['ma20']}을 지키는지 확인",
                 "호재/악재 후보의 뉴스 원문과 공시 확인",
@@ -2810,7 +2871,7 @@ def _compose_ollama_answer(subject: str, code: str, response: dict[str, Any]) ->
     down = _clean(probabilities.get("down"), "확인 필요")
     mood = _clean(report.get("mood"), "선별 접근")
     return (
-        f"{subject}{f'({code})' if code else ''}은(는) 현재 {decision} 의견입니다. "
+        f"{_topic_subject(subject, code)} 현재 {decision} 의견입니다. "
         f"{summary} 뉴스/이벤트 점수는 {score}점이고 다음 거래일 참고 확률은 상승 {up}%, 하락 {down}%입니다. "
         f"장후 분위기는 {mood}이며, 투자 지시가 아니라 조건 확인용 분석입니다."
     )
@@ -3039,7 +3100,10 @@ def _build_ollama_insights_prompt(
     "llmContextReason": ""
   }},
   "afterMarketReport": {{
-    "llmComment": ""
+    "llmComment": "",
+    "stockImpact": "",
+    "marketReadThrough": "",
+    "tomorrowChecklist": []
   }},
   "beginnerCoach": {{
     "plainSummary": "",
@@ -3172,6 +3236,35 @@ def _session_brief(mood: str, dashboard: dict[str, Any]) -> str:
     return f"장후 분위기는 {mood}입니다. 상승 쪽은 {gainer}({gainer_rate}), 하락 쪽은 {loser}({loser_rate})를 기준으로 다음 거래일 강약을 비교합니다."
 
 
+def _market_read_through(mood: str, market_bias: str, dashboard: dict[str, Any]) -> str:
+    top_gainer = dashboard.get("topGainer", {}) if isinstance(dashboard.get("topGainer"), dict) else {}
+    top_loser = dashboard.get("topLoser", {}) if isinstance(dashboard.get("topLoser"), dict) else {}
+    gainer = _clean(top_gainer.get("name"), "상승 리더")
+    loser = _clean(top_loser.get("name"), "하락 리더")
+    if "방어" in market_bias or "위험" in mood:
+        return f"{loser} 같은 약세 원인이 업종 전반으로 번지는지 먼저 보고, {gainer} 급등은 추격보다 눌림을 확인합니다."
+    if "관심" in market_bias or "확대" in mood:
+        return f"{gainer}의 상승 재료가 다른 종목 거래대금으로 확산되는지 확인하고, {loser} 약세가 지수 부담인지 비교합니다."
+    return f"{gainer}과 {loser}의 원인을 비교해 테마장인지 개별 이슈장인지 나눈 뒤 관심 종목을 선별합니다."
+
+
+def _market_tomorrow_checklist(mood: str, market_bias: str, dashboard: dict[str, Any]) -> list[str]:
+    top_gainer = dashboard.get("topGainer", {}) if isinstance(dashboard.get("topGainer"), dict) else {}
+    top_loser = dashboard.get("topLoser", {}) if isinstance(dashboard.get("topLoser"), dict) else {}
+    gainer = _clean(top_gainer.get("name"), "상승 리더")
+    loser = _clean(top_loser.get("name"), "하락 리더")
+    checklist = [
+        "관심 종목이 20일선 위에서 시작하고 거래량이 붙는지 확인",
+        f"{gainer} 상승 재료가 같은 업종으로 확산되는지 확인",
+        f"{loser} 하락 원인이 시장 전체 위험으로 번지는지 확인",
+    ]
+    if "방어" in market_bias or "위험" in mood:
+        checklist[0] = "보유 종목별 20일선·전저점 이탈 기준을 장 시작 전에 정리"
+    elif "관심" in market_bias or "확대" in mood:
+        checklist[0] = "전일 고점 돌파와 거래대금 증가가 함께 나오는 종목만 선별"
+    return checklist
+
+
 def _after_market_report_fallback(
     summary: dict[str, Any],
     basis_date: str,
@@ -3204,10 +3297,12 @@ def _after_market_report_fallback(
     action_plan = _after_market_action_plan(mood, market_bias, dashboard)
     leader_summaries = _leader_summary_items(summary)
     session_brief = _session_brief(mood, dashboard)
+    read_through = _market_read_through(mood, market_bias, dashboard)
+    tomorrow_checklist = _market_tomorrow_checklist(mood, market_bias, dashboard)
 
     return {
         "mode": "ollama_fallback_rule_based",
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "provider": "ollama",
         "model": _clean(llm_meta.get("model"), ""),
         "basisDate": basis_date,
@@ -3219,6 +3314,8 @@ def _after_market_report_fallback(
         "leaderSummaries": leader_summaries,
         "keyPoints": points[:4],
         "llmComment": comment,
+        "marketReadThrough": read_through,
+        "tomorrowChecklist": tomorrow_checklist,
         "nextWatch": [_clean(item, "") for item in next_watch[:4] if _clean(item, "")],
         "actionPlan": action_plan,
         "beginnerNotes": [
@@ -3284,6 +3381,8 @@ Qdrant 유사 근거:
   "marketBias": "관심 확대|중립|방어 우선",
   "keyPoints": [],
   "llmComment": "",
+  "marketReadThrough": "",
+  "tomorrowChecklist": [],
   "nextWatch": [],
   "actionPlan": [],
   "beginnerNotes": []
@@ -3297,10 +3396,10 @@ def _merge_after_market_report(base: dict[str, Any], generated: dict[str, Any] |
     if not generated:
         return base
     merged = {**base}
-    for field in ["llmComment"]:
+    for field in ["llmComment", "marketReadThrough"]:
         if isinstance(generated.get(field), str):
             merged[field] = _merge_text_value(merged.get(field), generated[field])
-    for field in ["keyPoints", "nextWatch", "actionPlan", "beginnerNotes", "limitations"]:
+    for field in ["keyPoints", "tomorrowChecklist", "nextWatch", "actionPlan", "beginnerNotes", "limitations"]:
         if isinstance(generated.get(field), list):
             merged[field] = _merge_list_value(merged.get(field), generated[field])
     return merged

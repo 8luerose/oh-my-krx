@@ -423,13 +423,15 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
     const bias = compactPanelText(report?.marketBias, loading ? '시장 방향 확인 중' : '중립', 28);
     const tone = marketMoodTone(`${mood} ${bias}`);
     const action = firstPanelItem(
-      report?.actionPlan || report?.nextWatch,
+      report?.tomorrowChecklist || report?.actionPlan || report?.nextWatch,
       loading
         ? '저장된 장후 브리프를 확인한 뒤 오늘 시장 분위기를 종목 판단에 연결합니다.'
         : report?.llmComment || '다음 거래일 시초가, 거래량, 20일선 유지 여부를 확인합니다.',
       108
     );
-    const stockImpact = tone === 'risk'
+    const stockImpact = report?.stockImpact
+      ? compactPanelText(report.stockImpact, '', 132)
+      : tone === 'risk'
       ? `${stock?.name || '선택 종목'} 기준으로는 추격보다 지지선·20일선 이탈 기준을 먼저 정해야 합니다.`
       : tone === 'positive'
         ? `${stock?.name || '선택 종목'} 기준으로는 시장 관심이 거래량으로 이어지는지 확인한 뒤 검토합니다.`
@@ -439,7 +441,7 @@ export default function ImmersiveChart({ stock, chart, zones, events, ai, indica
       mood,
       bias,
       tone,
-      summary: compactPanelText(report?.sessionBrief || report?.llmComment, loading ? '장후 시장 요약을 불러오는 중입니다.' : '장후 시장 흐름을 종목 판단에 연결합니다.', 116),
+      summary: compactPanelText(report?.marketReadThrough || report?.sessionBrief || report?.llmComment, loading ? '장후 시장 요약을 불러오는 중입니다.' : '장후 시장 흐름을 종목 판단에 연결합니다.', 116),
       stockImpact,
       action,
       gainerText,

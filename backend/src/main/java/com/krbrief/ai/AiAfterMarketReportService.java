@@ -152,7 +152,8 @@ public class AiAfterMarketReportService {
     return !(response.get("marketDashboard") instanceof Map<?, ?>)
         || !(response.get("leaderSummaries") instanceof java.util.List<?>)
         || !(response.get("actionPlan") instanceof java.util.List<?>)
-        || !"2".equals(String.valueOf(response.get("schemaVersion")))
+        || !(response.get("tomorrowChecklist") instanceof java.util.List<?>)
+        || !"3".equals(String.valueOf(response.get("schemaVersion")))
         || !response.containsKey("sessionBrief");
   }
 

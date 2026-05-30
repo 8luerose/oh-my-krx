@@ -625,6 +625,9 @@ function normalizeOllamaInsights(remote = {}) {
       mood: humanizeText(report.mood || "선별 접근"),
       keyPoints: normalizeTextList(report.keyPoints),
       llmComment: humanizeText(report.llmComment || "장후 브리프에 로컬 LLM 코멘트를 붙일 수 있습니다."),
+      stockImpact: humanizeText(report.stockImpact || ""),
+      marketReadThrough: humanizeText(report.marketReadThrough || ""),
+      tomorrowChecklist: normalizeTextList(report.tomorrowChecklist),
       nextWatch: normalizeTextList(report.nextWatch),
       actionPlan: normalizeTextList(report.actionPlan)
     },
@@ -656,6 +659,8 @@ function normalizeAfterMarketReport(remote = {}) {
     leaderSummaries: Array.isArray(remote.leaderSummaries) ? remote.leaderSummaries : [],
     keyPoints: normalizeTextList(remote.keyPoints),
     llmComment: humanizeText(remote.llmComment || "최신 저장 브리프를 기준으로 장후 확인 포인트를 정리합니다."),
+    marketReadThrough: humanizeText(remote.marketReadThrough || ""),
+    tomorrowChecklist: normalizeTextList(remote.tomorrowChecklist),
     nextWatch: normalizeTextList(remote.nextWatch),
     actionPlan: normalizeTextList(remote.actionPlan),
     beginnerNotes: normalizeTextList(remote.beginnerNotes),
